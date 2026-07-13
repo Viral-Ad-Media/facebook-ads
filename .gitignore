@@ -1,0 +1,7 @@
+node_modules/
+.next/
+data/*.db*
+public/assets/*
+!public/assets/.gitkeep
+*.tsbuildinfo
+next-env.d.ts
