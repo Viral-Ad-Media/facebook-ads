@@ -256,9 +256,11 @@ export default function StudioPage() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {creatives.map((c) => {
-                const src = c.asset_path
-                  ? c.asset_path.startsWith("/") ? c.asset_path : `/${c.asset_path}`
-                  : c.asset_url;
+                const src =
+                  c.asset_url ??
+                  (c.asset_path
+                    ? c.asset_path.startsWith("/") ? c.asset_path : `/${c.asset_path}`
+                    : null);
                 return (
                   <button key={c.id}
                     className={`card overflow-hidden text-left transition-all ${

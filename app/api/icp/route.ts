@@ -1,41 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const rows = getDb().prepare("SELECT * FROM icp_profiles ORDER BY id").all();
+  const rows = await sql`SELECT * FROM icp_profiles ORDER BY id`;
   return NextResponse.json(rows);
 }
 
 export async function POST(req: NextRequest) {
   const b = await req.json();
-  const info = getDb()
-    .prepare(
-      `INSERT INTO icp_profiles (name, description, age_min, age_max, genders, geo, interests, pain_points, tone)
-       VALUES (@name, @description, @age_min, @age_max, @genders, @geo, @interests, @pain_points, @tone)`
-    )
-    .run({
-      name: b.name ?? "New ICP",
-      description: b.description ?? "",
-      age_min: b.age_min ?? 25,
-      age_max: b.age_max ?? 55,
-      genders: b.genders ?? "all",
-      geo: b.geo ?? "US",
-      interests: b.interests ?? "",
-      pain_points: b.pain_points ?? "",
-      tone: b.tone ?? "confident, direct",
-    });
-  return NextResponse.json({ id: info.lastInsertRowid });
+  const [row] = await sql`
+    INSERT INTO icp_profiles (name, description, age_min, age_max, genders, geo, interests, pain_points, tone)
+    VALUES (${b.name ?? "New ICP"}, ${b.description ?? ""}, ${b.age_min ?? 25}, ${b.age_max ?? 55},
+            ${b.genders ?? "all"}, ${b.geo ?? "US"}, ${b.interests ?? ""}, ${b.pain_points ?? ""},
+            ${b.tone ?? "confident, direct"})
+    RETURNING id`;
+  return NextResponse.json({ id: row.id });
 }
 
 export async function PUT(req: NextRequest) {
   const b = await req.json();
-  getDb()
-    .prepare(
-      `UPDATE icp_profiles SET name=@name, description=@description, age_min=@age_min, age_max=@age_max,
-       genders=@genders, geo=@geo, interests=@interests, pain_points=@pain_points, tone=@tone WHERE id=@id`
-    )
-    .run(b);
+  await sql`
+    UPDATE icp_profiles SET name=${b.name}, description=${b.description}, age_min=${b.age_min},
+      age_max=${b.age_max}, genders=${b.genders}, geo=${b.geo}, interests=${b.interests},
+      pain_points=${b.pain_points}, tone=${b.tone}
+    WHERE id=${b.id}`;
   return NextResponse.json({ ok: true });
 }

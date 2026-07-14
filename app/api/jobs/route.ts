@@ -1,24 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const status = req.nextUrl.searchParams.get("status");
-  const db = getDb();
   const rows = status
-    ? db.prepare("SELECT * FROM jobs WHERE status = ? ORDER BY id DESC LIMIT 50").all(status)
-    : db.prepare("SELECT * FROM jobs ORDER BY id DESC LIMIT 50").all();
-  const pending = db.prepare("SELECT COUNT(*) as c FROM jobs WHERE status='pending'").get() as {
-    c: number;
-  };
+    ? await sql`SELECT * FROM jobs WHERE status = ${status} ORDER BY id DESC LIMIT 50`
+    : await sql`SELECT * FROM jobs ORDER BY id DESC LIMIT 50`;
+  const [pending] = await sql`SELECT COUNT(*)::int as c FROM jobs WHERE status='pending'`;
   return NextResponse.json({ jobs: rows, pending: pending.c });
 }
 
 export async function POST(req: NextRequest) {
   const b = await req.json();
-  const info = getDb()
-    .prepare("INSERT INTO jobs (type, payload) VALUES (?, ?)")
-    .run(b.type, JSON.stringify(b.payload ?? {}));
-  return NextResponse.json({ id: info.lastInsertRowid });
+  const [row] = await sql`
+    INSERT INTO jobs (type, payload) VALUES (${b.type}, ${JSON.stringify(b.payload ?? {})})
+    RETURNING id`;
+  return NextResponse.json({ id: row.id });
 }

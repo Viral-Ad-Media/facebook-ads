@@ -9,19 +9,22 @@ You are the creative engine for the Facebook Ads Studio app in this project. Exe
 
 ## Steps
 
-1. **Read pending jobs** (project root is this skill's grandparent dir; DB is `data/ads.db`):
-   ```bash
-   sqlite3 -json data/ads.db "SELECT * FROM jobs WHERE status='pending' AND type IN ('generate_creative','regenerate') ORDER BY id"
+**Database access:** the DB is hosted Postgres (Supabase project the `SUPABASE_PROJECT_ID` from `.env.local`, schema `fbads`). Run all SQL with the Supabase MCP tool `execute_sql`, always qualifying tables as `fbads.<table>`.
+
+1. **Read pending jobs**:
+   ```sql
+   SELECT * FROM fbads.jobs WHERE status='pending' AND type IN ('generate_creative','regenerate') ORDER BY id
    ```
-   For each job, mark it running: `UPDATE jobs SET status='running' WHERE id=?`.
+   For each job, mark it running: `UPDATE fbads.jobs SET status='running' WHERE id=?`.
 
 2. **Load the brief + ICP** (`payload.brief_id`; for `regenerate` jobs, look up the original creative's brief via `payload.creative_id`):
-   ```bash
-   sqlite3 -json data/ads.db "SELECT b.*, i.name icp_name, i.description icp_desc, i.pain_points, i.tone, i.interests FROM briefs b LEFT JOIN icp_profiles i ON i.id=b.icp_id WHERE b.id=?"
+   ```sql
+   SELECT b.*, i.name icp_name, i.description icp_desc, i.pain_points, i.tone, i.interests
+   FROM fbads.briefs b LEFT JOIN fbads.icp_profiles i ON i.id=b.icp_id WHERE b.id=?
    ```
    Also read the top learnings — apply them to hooks and formats:
-   ```bash
-   sqlite3 -json data/ads.db "SELECT dimension, insight FROM learnings ORDER BY confidence DESC LIMIT 5"
+   ```sql
+   SELECT dimension, insight FROM fbads.learnings ORDER BY confidence DESC LIMIT 5
    ```
 
 3. **Write the copy yourself** for each variant × format. Rules:
@@ -34,18 +37,16 @@ You are the creative engine for the Facebook Ads Studio app in this project. Exe
    - One asset per variant × format. Match the format's aspect ratio exactly:
      - `feed_square` 1:1 (1080×1080) · `feed_portrait` 4:5 (1080×1350) · `story_vertical` 9:16 (1080×1920) · `landscape` 1.91:1 (1200×628)
    - Prompt = product + angle/hook + brief notes + "Facebook ad creative, scroll-stopping, no embedded text overlays, professional advertising photography/motion".
-   - Download each finished asset into `public/assets/` named `creative-<brief_id>-<n>.<ext>` (curl the returned URL). Keep the hosted URL too.
+   - **`asset_url` (the hosted Higgsfield URL) is the primary asset reference** — the deployed app renders from it. Optionally also download a local backup into `public/assets/` named `creative-<brief_id>-<n>.<ext>` and store it as `asset_path` (leading slash, e.g. `/assets/creative-3-1.png`).
 
 5. **Insert creatives**:
-   ```bash
-   sqlite3 data/ads.db "INSERT INTO creatives (brief_id, media_type, format, asset_path, asset_url, primary_text, headline, description, cta, hook) VALUES (...)"
+   ```sql
+   INSERT INTO fbads.creatives (brief_id, media_type, format, asset_path, asset_url, primary_text, headline, description, cta, hook) VALUES (...)
    ```
-   `asset_path` is relative to `public/`, stored with a leading slash, e.g. `/assets/creative-3-1.png`.
-   For long copy strings prefer a heredoc: `sqlite3 data/ads.db <<'SQL' ... SQL`.
 
-6. **Finish each job**: `UPDATE jobs SET status='done', result=?, finished_at=datetime('now') WHERE id=?` (result = JSON list of creative ids). Set the brief `status='ready'`. On any failure, set job `status='failed'` with the error in `result` and continue with the next job.
+6. **Finish each job**: `UPDATE fbads.jobs SET status='done', result=?, finished_at=now() WHERE id=?` (result = JSON list of creative ids). Set the brief `status='ready'`. On any failure, set job `status='failed'` with the error in `result` and continue with the next job.
 
-7. **Report**: list what was generated per brief and tell the user the variants are ready to preview at http://localhost:3100/studio.
+7. **Report**: list what was generated per brief and tell the user the variants are ready to preview in the Studio (locally http://localhost:3100/studio, or the deployed Vercel URL).
 
 ## Rules
 - Never call Facebook tools from this skill — generation only.

@@ -15,9 +15,12 @@ export interface PreviewCreative {
   landing_url?: string | null;
 }
 
+// Prefer the hosted URL (works on any machine / the deployed app);
+// fall back to a locally downloaded copy.
 function assetSrc(c: PreviewCreative): string | null {
+  if (c.asset_url) return c.asset_url;
   if (c.asset_path) return c.asset_path.startsWith("/") ? c.asset_path : `/${c.asset_path}`;
-  return c.asset_url ?? null;
+  return null;
 }
 
 function domain(url?: string | null): string {

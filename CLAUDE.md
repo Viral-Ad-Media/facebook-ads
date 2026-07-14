@@ -18,11 +18,21 @@ using the connected MCP connectors:
 
 ## Database
 
-`data/ads.db` (WAL). Schema in `lib/schema.sql`. Key tables: `briefs → creatives`,
-`campaigns → ad_sets → ads → metrics_daily`, `competitor_ads` (Ads Library scans), `engine_actions`
-(audit log — every FB mutation gets a row), `learnings`, `jobs` (the queue), `settings` (guardrails
-+ FB account IDs).
-Query with `sqlite3 -json data/ads.db "..."`. Money is stored in **cents**.
+Hosted Postgres — a Supabase project with an isolated schema **`fbads`** (created by migration
+`fbads_studio_schema`). One shared DB means the web app (local or Vercel) and the Claude Code
+engine on any machine see the same state.
+
+- **From skills / Claude Code**: use the Supabase MCP tool `execute_sql` with the project id from
+  `SUPABASE_PROJECT_ID` in `.env.local`; always qualify tables as `fbads.<table>`.
+- **From the app / scripts**: `lib/db.ts` connects via `DATABASE_URL` (dedicated app role with
+  search_path=fbads, Supabase transaction pooler → `prepare: false`). Local dev needs `.env.local`
+  (see `.env.example`).
+
+Key tables: `briefs → creatives`, `campaigns → ad_sets → ads → metrics_daily`, `competitor_ads`
+(Ads Library scans), `engine_actions` (audit log — every FB mutation gets a row), `learnings`,
+`jobs` (the queue), `settings` (guardrails + FB account IDs). Money is stored in **cents**.
+The `fbads` schema is revoked from the anon/authenticated API roles — only the dedicated app role
+and the admin roles can touch it.
 
 ## Safety rules
 
@@ -34,9 +44,14 @@ Query with `sqlite3 -json data/ads.db "..."`. Money is stored in **cents**.
 4. Facebook tool schemas are authoritative — discover exact parameter shapes at call time; on
    errors use `ads_get_errors` and report rather than retrying blindly.
 
-## Dev
+## Dev & hosting
 
 ```bash
-npm run dev        # app on http://localhost:3100 (DB auto-creates + seeds on first request)
+npm run dev        # app on http://localhost:3100 (needs DATABASE_URL in .env.local)
 npm run rules      # rules engine dry run — prints proposed actions JSON
 ```
+
+Hosted on Vercel (project `facebook-ads`, functions pinned near the DB via vercel.json). The
+deployment is gated by a shared password (`ADMIN_PASSWORD` env; middleware sets an `ads_key`
+cookie). Generated creatives render from `asset_url` (Higgsfield-hosted), so they work on
+any machine; `public/assets/` copies are local-only backups.

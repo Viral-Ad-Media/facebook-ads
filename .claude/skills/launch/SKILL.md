@@ -14,9 +14,11 @@ You are the publishing engine for the Facebook Ads Studio app. Execute every pen
 
 ## Steps
 
+**Database access:** hosted Postgres (Supabase project the `SUPABASE_PROJECT_ID` from `.env.local`, schema `fbads`). Run all SQL with the Supabase MCP tool `execute_sql`, always qualifying tables as `fbads.<table>`.
+
 1. **Read pending jobs**:
-   ```bash
-   sqlite3 -json data/ads.db "SELECT * FROM jobs WHERE status='pending' AND type='launch_campaign' ORDER BY id"
+   ```sql
+   SELECT * FROM fbads.jobs WHERE status='pending' AND type='launch_campaign' ORDER BY id
    ```
    Mark each running before working on it.
 
@@ -40,4 +42,4 @@ You are the publishing engine for the Facebook Ads Studio app. Execute every pen
 
 7. **Activate** only per the safety rules above (`ads_activate_entity` on the campaign/ads), then set local statuses to 'active'.
 
-8. **Finish**: mark job done with a JSON result of created IDs. Report a summary — campaign name, FB campaign ID, budget/day, audience summary, number of ads — and remind the user the campaign is paused until activated (dashboard: http://localhost:3100).
+8. **Finish**: mark job done with a JSON result of created IDs. Report a summary — campaign name, FB campaign ID, budget/day, audience summary, number of ads — and remind the user the campaign is paused until activated (dashboard: http://localhost:3100 or the deployed Vercel URL).

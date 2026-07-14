@@ -1,7 +1,68 @@
+# ── Dependencies ─────────────────────────────────────────────
 node_modules/
+.pnp
+.pnp.*
+.yarn/*
+
+# ── Next.js build output ─────────────────────────────────────
 .next/
-data/*.db*
-public/assets/*
-!public/assets/.gitkeep
+out/
+build/
+dist/
 *.tsbuildinfo
 next-env.d.ts
+
+# ── Local database & generated media (never commit) ─────────
+data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+public/assets/*
+!public/assets/.gitkeep
+
+# ── Environment & secrets ───────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.secrets/
+
+# ── Vercel ───────────────────────────────────────────────────
+.vercel
+
+# ── Logs & debug ─────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ── Test & coverage ──────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ── Editors & tooling ────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── OS junk ──────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+
+# ── Misc ─────────────────────────────────────────────────────
+*.tgz
+.cache/
+tmp/
+temp/

@@ -108,9 +108,11 @@ export default function LaunchPage() {
           ) : (
             <div className="grid grid-cols-3 gap-2.5">
               {approved.map((c) => {
-                const src = c.asset_path
-                  ? c.asset_path.startsWith("/") ? c.asset_path : `/${c.asset_path}`
-                  : c.asset_url;
+                const src =
+                  c.asset_url ??
+                  (c.asset_path
+                    ? c.asset_path.startsWith("/") ? c.asset_path : `/${c.asset_path}`
+                    : null);
                 const on = selectedIds.includes(c.id);
                 return (
                   <button key={c.id}
