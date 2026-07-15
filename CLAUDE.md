@@ -5,6 +5,7 @@ SQLite performance database; **Claude Code is the execution engine** — it drai
 using the connected MCP connectors:
 
 - **Higgsfield connector** (`generate_image`, `generate_video`, `models_explore`) — creative generation
+- **kie-ai connector** (`nano_banana_image`, `flux2_image`, `kling_video`, `veo3_generate_video`, `wait_for_task`) — **standing fallback** whenever Higgsfield fails or is out of credits; use it automatically, no need to ask
 - **Facebook Ads connector** (`ads_*` tools) — publishing, insights, on/off, budgets
 
 ## The three skills

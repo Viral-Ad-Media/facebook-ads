@@ -32,8 +32,12 @@ You are the creative engine for the Facebook Ads Studio app in this project. Exe
    - Voice = ICP `tone`; lead with the ICP's pain point; include the offer; each variant uses a distinctly different hook (record it in the `hook` column, 3–6 words, e.g. "time-saved angle", "social proof angle").
    - Pick a `cta` from: LEARN_MORE, SHOP_NOW, SIGN_UP, GET_OFFER, SUBSCRIBE, CONTACT_US, DOWNLOAD.
 
-4. **Generate visuals with Higgsfield** (the connected Higgsfield MCP server):
-   - Images: `generate_image`; Videos: `generate_video`. If unsure which model fits, call `models_explore(action:'recommend')` first.
+4. **Generate visuals — Higgsfield first, kie-ai as the standing fallback**:
+   - **Primary (Higgsfield MCP)**: images via `generate_image`, videos via `generate_video`. If unsure which model fits, call `models_explore(action:'recommend')` first.
+   - **Fallback (kie-ai MCP)** — use automatically whenever Higgsfield fails, is out of credits, or lacks a suitable model. Do not stop to ask; the user has standing approval for kie-ai as the alternative.
+     - Images: `nano_banana_image` (default), `flux2_image` or `gpt_image_2` if a prompt needs a different look.
+     - Videos: `kling_video` or `veo3_generate_video` (default kling for ad motion), `hailuo_video` as backup.
+     - kie-ai jobs are async: capture the task id, then `wait_for_task` (or poll `get_task_status`) until it returns the hosted media URL.
    - One asset per variant × format. Match the format's aspect ratio exactly:
      - `feed_square` 1:1 (1080×1080) · `feed_portrait` 4:5 (1080×1350) · `story_vertical` 9:16 (1080×1920) · `landscape` 1.91:1 (1200×628)
    - Prompt = product + angle/hook + brief notes + "Facebook ad creative, scroll-stopping, no embedded text overlays, professional advertising photography/motion".
