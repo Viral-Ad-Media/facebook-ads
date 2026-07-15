@@ -15,7 +15,17 @@ async function expectedToken(): Promise<string | null> {
 
 export async function middleware(req: NextRequest) {
   const token = await expectedToken();
-  if (!token) return NextResponse.next();
+  if (!token) {
+    // Fail closed in production: an unconfigured ads console must not be
+    // publicly writable. Local dev (no ADMIN_PASSWORD) stays open.
+    if (process.env.NODE_ENV === "production") {
+      return new NextResponse(
+        "Locked: set the ADMIN_PASSWORD environment variable in Vercel and redeploy.",
+        { status: 503 }
+      );
+    }
+    return NextResponse.next();
+  }
   if (req.cookies.get("ads_key")?.value === token) return NextResponse.next();
 
   if (req.nextUrl.pathname.startsWith("/api/")) {
