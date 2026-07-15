@@ -7,7 +7,6 @@
     "build": "next build",
     "start": "next start -p 3100",
     "lint": "next lint",
-    "db:init": "tsx scripts/init-db.ts",
     "rules": "tsx scripts/evaluate-rules.ts"
   },
   "dependencies": {
