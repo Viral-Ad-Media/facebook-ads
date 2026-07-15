@@ -27,8 +27,17 @@ function createClient() {
   });
 }
 
-export const sql = globalThis.__fbadsSql ?? createClient();
-if (process.env.NODE_ENV !== "production") globalThis.__fbadsSql = sql;
+// Lazy init: `next build` imports route modules while collecting page data,
+// and must not require DATABASE_URL. The client is created on first query.
+function getClient() {
+  if (!globalThis.__fbadsSql) globalThis.__fbadsSql = createClient();
+  return globalThis.__fbadsSql;
+}
+
+export const sql = new Proxy(function () {} as unknown as ReturnType<typeof postgres>, {
+  apply: (_target, _thisArg, args) => (getClient() as any)(...args),
+  get: (_target, prop) => (getClient() as any)[prop],
+}) as ReturnType<typeof postgres>;
 
 export const DEFAULT_SETTINGS: Record<string, string> = {
   fb_ad_account_id: "",
