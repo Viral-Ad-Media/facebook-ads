@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Binoculars, Star, ExternalLink, ArrowRight, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import EngineBanner from "@/components/EngineBanner";
+import { getJson } from "@/lib/client";
 
 type CompetitorAd = {
   id: number;
@@ -41,7 +42,10 @@ export default function CompetitorsPage() {
 
   const load = useCallback(async (q: string | null) => {
     const url = q ? `/api/competitor-ads?query=${encodeURIComponent(q)}` : "/api/competitor-ads";
-    const data = await fetch(url).then((r) => r.json());
+    const data = await getJson<{ ads: CompetitorAd[]; queries: QueryGroup[] }>(url, {
+      ads: [],
+      queries: [],
+    });
     setAds(data.ads);
     setQueries(data.queries);
   }, []);

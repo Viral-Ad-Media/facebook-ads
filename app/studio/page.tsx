@@ -6,6 +6,7 @@ import AdPreview from "@/components/AdPreview";
 import EngineBanner from "@/components/EngineBanner";
 import CharCounter from "@/components/CharCounter";
 import { COPY_LIMITS, CTA_OPTIONS, FORMAT_SPECS } from "@/lib/format-specs";
+import { getJson } from "@/lib/client";
 
 type Icp = { id: number; name: string };
 type Learning = { id: number; dimension: string; insight: string; confidence: number };
@@ -57,9 +58,9 @@ export default function StudioPage() {
 
   const load = useCallback(async () => {
     const [i, l, b] = await Promise.all([
-      fetch("/api/icp").then((r) => r.json()),
-      fetch("/api/learnings").then((r) => r.json()),
-      fetch("/api/briefs").then((r) => r.json()),
+      getJson<Icp[]>("/api/icp", []),
+      getJson<Learning[]>("/api/learnings", []),
+      getJson<Brief[]>("/api/briefs", []),
     ]);
     setIcps(i);
     setLearnings(l.slice(0, 3));
@@ -70,7 +71,7 @@ export default function StudioPage() {
 
   const loadCreatives = useCallback(async (briefId: number | null) => {
     const url = briefId ? `/api/creatives?brief_id=${briefId}` : "/api/creatives";
-    const rows: Creative[] = await fetch(url).then((r) => r.json());
+    const rows = await getJson<Creative[]>(url, []);
     setCreatives(rows);
     setSelected((prev) => rows.find((c) => c.id === prev?.id) ?? rows[0] ?? null);
   }, []);

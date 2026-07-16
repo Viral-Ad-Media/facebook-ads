@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Lightbulb, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { getJson } from "@/lib/client";
 
 type Learning = {
   id: number;
@@ -26,7 +27,7 @@ export default function LearningsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch("/api/learnings").then((r) => r.json()).then(setLearnings);
+    getJson<Learning[]>("/api/learnings", []).then(setLearnings);
   }, []);
 
   return (

@@ -5,6 +5,7 @@ import { Rocket, Target, DollarSign, ShieldCheck } from "lucide-react";
 import EngineBanner from "@/components/EngineBanner";
 import { OBJECTIVES } from "@/lib/format-specs";
 import { recommendSpend } from "@/lib/spend";
+import { getJson } from "@/lib/client";
 
 type Icp = {
   id: number;
@@ -38,9 +39,9 @@ export default function LaunchPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/icp").then((r) => r.json()),
-      fetch("/api/creatives?status=approved").then((r) => r.json()),
-      fetch("/api/settings").then((r) => r.json()),
+      getJson<Icp[]>("/api/icp", []),
+      getJson<Creative[]>("/api/creatives?status=approved", []),
+      getJson<Record<string, string>>("/api/settings", {}),
     ]).then(([i, c, s]) => {
       setIcps(i);
       setApproved(c);

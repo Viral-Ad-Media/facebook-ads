@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Bot } from "lucide-react";
+import { getJson } from "@/lib/client";
 
 /**
  * Shows pending engine jobs. The web app never calls Facebook/Higgsfield
@@ -14,15 +15,13 @@ export default function EngineBanner() {
   useEffect(() => {
     let alive = true;
     const poll = async () => {
-      try {
-        const res = await fetch("/api/jobs?status=pending");
-        const data = await res.json();
-        if (!alive) return;
-        setPending(data.pending ?? 0);
-        setTypes(Array.from(new Set((data.jobs ?? []).map((j: any) => j.type))));
-      } catch {
-        /* server restarting */
-      }
+      const data = await getJson<{ pending: number; jobs: any[] }>("/api/jobs?status=pending", {
+        pending: 0,
+        jobs: [],
+      });
+      if (!alive) return;
+      setPending(data.pending ?? 0);
+      setTypes(Array.from(new Set((data.jobs ?? []).map((j: any) => j.type))));
     };
     poll();
     const t = setInterval(poll, 4000);

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Save, Plus, ShieldAlert } from "lucide-react";
+import { getJson } from "@/lib/client";
 
 type Icp = {
   id: number;
@@ -33,8 +34,8 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    fetch("/api/settings").then((r) => r.json()).then(setSettings);
-    fetch("/api/icp").then((r) => r.json()).then(setIcps);
+    getJson<Record<string, string>>("/api/settings", {}).then(setSettings);
+    getJson<Icp[]>("/api/icp", []).then(setIcps);
   }, []);
 
   async function saveSettings() {
@@ -63,7 +64,7 @@ export default function SettingsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "New ICP" }),
     });
-    setIcps(await fetch("/api/icp").then((r) => r.json()));
+    setIcps(await getJson<Icp[]>("/api/icp", []));
   }
 
   function setIcpField(id: number, field: keyof Icp, value: string | number) {

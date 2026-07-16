@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { Play, Pause, Activity, Bot, CircleDollarSign } from "lucide-react";
 import EngineBanner from "@/components/EngineBanner";
+import { getJson } from "@/lib/client";
 
 type Campaign = {
   id: number;
@@ -64,9 +65,9 @@ export default function DashboardPage() {
 
   const load = useCallback(async () => {
     const [c, a, m] = await Promise.all([
-      fetch("/api/campaigns").then((r) => r.json()),
-      fetch("/api/actions").then((r) => r.json()),
-      fetch("/api/metrics").then((r) => r.json()),
+      getJson<Campaign[]>("/api/campaigns", []),
+      getJson<ActionRow[]>("/api/actions", []),
+      getJson<any[]>("/api/metrics", []),
     ]);
     setCampaigns(c);
     setActions(a);
