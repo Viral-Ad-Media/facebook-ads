@@ -43,6 +43,21 @@ You are the creative engine for the Facebook Ads Studio app in this project. Exe
    - Prompt = product + angle/hook + brief notes + "Facebook ad creative, scroll-stopping, no embedded text overlays, professional advertising photography/motion".
    - **`asset_url` (the hosted Higgsfield URL) is the primary asset reference** — the deployed app renders from it. Optionally also download a local backup into `public/assets/` named `creative-<brief_id>-<n>.<ext>` and store it as `asset_path` (leading slash, e.g. `/assets/creative-3-1.png`).
 
+4b. **Long-form scripted videos (any length, consistent characters)** — when the brief calls for a narrative/UGC-style ad longer than one clip (~15s max per generation), build it scene by scene:
+   1. **Write the script first**, broken into scenes of 5–10 seconds each. Name the main character(s).
+   2. **Character sheet**: generate ONE reference portrait per character with `nano_banana_image` (9:16, distinctive features: hair, outfit, accessories — distinctiveness is what keeps consistency).
+   3. **Generate each scene** with `kling_video`, passing the SAME character via `kling_elements`:
+      `kling_elements: [{name: "<Name>", description: "<exact physical description>", element_input_urls: ["<reference image URL>"]}]`
+      and refer to the character **by name in the prompt**. Required call shape: `multi_shots: true` + `multi_prompt: [{duration, prompt}]` (the API rejects calls without them). Keep lighting/location continuity in the prompt ("in the same home office…").
+   4. **Stitch locally** with the project's ffmpeg (`node_modules/ffmpeg-static/ffmpeg` — installed as a dev dependency; always quote the path, the folder name has a space):
+      ```bash
+      printf "file 'scene1.mp4'\nfile 'scene2.mp4'\n" > list.txt
+      "node_modules/ffmpeg-static/ffmpeg" -f concat -safe 0 -i list.txt -c:v libx264 -pix_fmt yuv420p -r 30 -an out.mp4
+      ```
+      (Re-encode rather than `-c copy` so mismatched clip encodings never break playback.)
+   5. Optional voiceover: generate narration per the script (e.g. kie `elevenlabs_tts`), then mux: `ffmpeg -i out.mp4 -i vo.mp3 -c:v copy -map 0:v -map 1:a -shortest final.mp4`.
+   6. Save the stitched file to `public/assets/` and insert ONE creative row for it (media_type 'video'). There is no hosted URL for stitched videos — set `asset_path` and leave `asset_url` NULL.
+
 5. **Insert creatives**:
    ```sql
    INSERT INTO fbads.creatives (brief_id, media_type, format, asset_path, asset_url, primary_text, headline, description, cta, hook) VALUES (...)
