@@ -34,3 +34,18 @@ export async function PATCH(req: NextRequest) {
   await sql`UPDATE competitor_ads SET starred = ${b.starred ? 1 : 0} WHERE id = ${b.id}`;
   return NextResponse.json({ ok: true });
 }
+
+// Delete a single stored ad (?id=) or an entire scanned competitor (?query=).
+export async function DELETE(req: NextRequest) {
+  const id = req.nextUrl.searchParams.get("id");
+  const query = req.nextUrl.searchParams.get("query");
+  if (id) {
+    await sql`DELETE FROM competitor_ads WHERE id = ${id}`;
+    return NextResponse.json({ ok: true, deleted: 1 });
+  }
+  if (query) {
+    const rows = await sql`DELETE FROM competitor_ads WHERE query = ${query} RETURNING id`;
+    return NextResponse.json({ ok: true, deleted: rows.length });
+  }
+  return NextResponse.json({ error: "id or query required" }, { status: 400 });
+}

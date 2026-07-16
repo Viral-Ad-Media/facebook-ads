@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Binoculars, Star, ExternalLink, ArrowRight, Trophy } from "lucide-react";
+import { Binoculars, Star, ExternalLink, ArrowRight, Trophy, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import EngineBanner from "@/components/EngineBanner";
 import { getJson } from "@/lib/client";
@@ -77,6 +77,19 @@ export default function CompetitorsPage() {
     load(activeQuery);
   }
 
+  async function deleteAd(ad: CompetitorAd) {
+    if (!window.confirm(`Delete this ${ad.page_name} ad from your library?`)) return;
+    await fetch(`/api/competitor-ads?id=${ad.id}`, { method: "DELETE" });
+    load(activeQuery);
+  }
+
+  async function deleteQuery(q: QueryGroup) {
+    if (!window.confirm(`Remove "${q.query}" and all ${q.c} of its stored ads?`)) return;
+    await fetch(`/api/competitor-ads?query=${encodeURIComponent(q.query)}`, { method: "DELETE" });
+    if (activeQuery === q.query) setActiveQuery(null);
+    load(activeQuery === q.query ? null : activeQuery);
+  }
+
   function useAsInspiration(ad: CompetitorAd) {
     const inspo = {
       angle: ad.analysis || `Inspired by ${ad.page_name}: "${(ad.headline || ad.body || "").slice(0, 80)}"`,
@@ -126,11 +139,19 @@ export default function CompetitorsPage() {
             All
           </button>
           {queries.map((q) => (
-            <button key={q.query}
-              className={`text-[12px] px-2.5 py-1 rounded-full border ${activeQuery === q.query ? "border-accent bg-accent/15 text-accent-soft" : "border-line text-slate-500 hover:text-slate-300"}`}
+            <span key={q.query}
+              className={`text-[12px] pl-2.5 pr-1 py-1 rounded-full border inline-flex items-center gap-1 cursor-pointer ${activeQuery === q.query ? "border-accent bg-accent/15 text-accent-soft" : "border-line text-slate-500 hover:text-slate-300"}`}
               onClick={() => setActiveQuery(q.query)}>
               {q.query} ({q.c})
-            </button>
+              <button title={`Remove ${q.query} and its ads`}
+                className="rounded-full p-0.5 hover:bg-red-500/20 hover:text-red-400"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteQuery(q);
+                }}>
+                <X className="w-3 h-3" />
+              </button>
+            </span>
           ))}
         </div>
       )}
@@ -147,11 +168,16 @@ export default function CompetitorsPage() {
             const winner = days !== null && days >= 60;
             return (
               <div key={ad.id} className={`card p-4 flex flex-col ${winner ? "border-amber-500/40" : ""}`}>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-2 gap-2">
                   <div className="font-medium text-white text-sm truncate">{ad.page_name}</div>
-                  <button onClick={() => toggleStar(ad)} title="Star">
-                    <Star className={`w-4 h-4 ${ad.starred ? "text-amber-400 fill-amber-400" : "text-slate-600 hover:text-slate-400"}`} />
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => toggleStar(ad)} title="Star">
+                      <Star className={`w-4 h-4 ${ad.starred ? "text-amber-400 fill-amber-400" : "text-slate-600 hover:text-slate-400"}`} />
+                    </button>
+                    <button onClick={() => deleteAd(ad)} title="Delete ad">
+                      <Trash2 className="w-4 h-4 text-slate-600 hover:text-red-400" />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-2 text-[11px]">
                   {days !== null && (
