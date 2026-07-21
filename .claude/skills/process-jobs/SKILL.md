@@ -32,11 +32,22 @@ You are the creative engine for the Facebook Ads Studio app in this project. Exe
    - Voice = ICP `tone`; lead with the ICP's pain point; include the offer; each variant uses a distinctly different hook (record it in the `hook` column, 3–6 words, e.g. "time-saved angle", "social proof angle").
    - Pick a `cta` from: LEARN_MORE, SHOP_NOW, SIGN_UP, GET_OFFER, SUBSCRIBE, CONTACT_US, DOWNLOAD.
 
+3b. **Meta ad-policy compliance gate (MANDATORY — run on every creative before insert)**. Competitor angles are inspiration, but many competitors run policy-violating copy; translate the angle into compliant form, never copy the violation. Reject/rewrite anything that fails:
+   - **No income claims or guarantees**: no "$X/month", "make your first $5k", "passive income guaranteed". Compliant framing: skills/process outcomes ("learn the exact system", "build your store step by step"). Testimonial-style claims need real, verifiable results + "results not typical" context — default to avoiding them entirely.
+   - **No personal-attribute callouts**: nothing that asserts or implies the viewer's financial status, age, race, health, or other traits ("Are you broke?", "Perfect for felons" ❌). Address the situation, not the person ("When the 9-5 math stops adding up" ✓).
+   - **No sensational/deceptive framing**: no "hidden loophole", "secret they don't want you to know", fake "REPORT:" news framing, clickbait urgency, or artificial scarcity that isn't real.
+   - **No fake UI in creatives**: no play buttons that don't play, no fake notification overlays, checkboxes, or platform UI mimicking Facebook. In-scene screens (a laptop showing a dashboard in a photo) are fine; overlay graphics that look interactive are not.
+   - **Trademarks**: descriptive references ("sell on Amazon and Walmart") are fine; never use Amazon/Walmart/Meta logos in generated visuals or imply endorsement — add "no brand logos" to every image/video prompt.
+   - **Visual standards**: no before/after money or body shots, no shocking/strobing content, minimal text baked into images (put copy in the ad fields, not the artwork).
+   - **Landing-page match**: the promise in the ad must exist on `landing_url` — flag mismatches in your report.
+   - Log a one-line compliance note per creative in the job `result` if anything was rewritten.
+
 4. **Generate visuals — Higgsfield first, kie-ai as the standing fallback**:
    - **Primary (Higgsfield MCP)**: images via `generate_image`, videos via `generate_video`. If unsure which model fits, call `models_explore(action:'recommend')` first.
    - **Fallback (kie-ai MCP)** — use automatically whenever Higgsfield fails, is out of credits, or lacks a suitable model. Do not stop to ask; the user has standing approval for kie-ai as the alternative.
      - Images: `nano_banana_image` (default), `flux2_image` or `gpt_image_2` if a prompt needs a different look.
      - Videos: `kling_video` or `veo3_generate_video` (default kling for ad motion), `hailuo_video` as backup.
+     - **Every video MUST ship with audio — no silent ads.** For single-clip videos pass `sound: true` to kling (native ambient/dialogue audio). If a clip comes back silent, add a voiceover or music bed before saving (see 4b step 5). Verify before insert: `ffmpeg -i file.mp4` must show an audio stream.
      - kie-ai jobs are async: capture the task id, then `wait_for_task` (or poll `get_task_status`) until it returns the hosted media URL.
    - One asset per variant × format. Match the format's aspect ratio exactly:
      - `feed_square` 1:1 (1080×1080) · `feed_portrait` 4:5 (1080×1350) · `story_vertical` 9:16 (1080×1920) · `landscape` 1.91:1 (1200×628)
@@ -52,10 +63,12 @@ You are the creative engine for the Facebook Ads Studio app in this project. Exe
    4. **Stitch locally** with the project's ffmpeg (`node_modules/ffmpeg-static/ffmpeg` — installed as a dev dependency; always quote the path, the folder name has a space):
       ```bash
       printf "file 'scene1.mp4'\nfile 'scene2.mp4'\n" > list.txt
-      "node_modules/ffmpeg-static/ffmpeg" -f concat -safe 0 -i list.txt -c:v libx264 -pix_fmt yuv420p -r 30 -an out.mp4
+      "node_modules/ffmpeg-static/ffmpeg" -f concat -safe 0 -i list.txt -c:v libx264 -pix_fmt yuv420p -r 30 out.mp4
       ```
-      (Re-encode rather than `-c copy` so mismatched clip encodings never break playback.)
-   5. Optional voiceover: generate narration per the script (e.g. kie `elevenlabs_tts`), then mux: `ffmpeg -i out.mp4 -i vo.mp3 -c:v copy -map 0:v -map 1:a -shortest final.mp4`.
+      (Re-encode rather than `-c copy` so mismatched clip encodings never break playback. Never pass `-an` — audio is required.)
+   5. **Voiceover/audio (required, not optional)**: write narration matching the script beats, generate it with kie `elevenlabs_tts`, then mux:
+      `ffmpeg -i out.mp4 -i vo.mp3 -c:v copy -map 0:v -map 1:a -shortest final.mp4`
+      If scenes already carry kling native audio (`sound: true` per scene), the concat keeps it — voiceover can layer on top with `amix` if both are wanted. Final check before insert: the file must contain an audio stream.
    6. Save the stitched file to `public/assets/` and insert ONE creative row for it (media_type 'video'). There is no hosted URL for stitched videos — set `asset_path` and leave `asset_url` NULL.
 
 5. **Insert creatives**:
