@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Lightbulb, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
+import EmptyState from "@/components/EmptyState";
 import { getJson } from "@/lib/client";
 
 type Learning = {
@@ -40,10 +41,16 @@ export default function LearningsPage() {
       </p>
 
       {learnings.length === 0 ? (
-        <div className="card p-10 text-center text-sm text-slate-500">
-          No learnings yet. Once campaigns collect data, the engine compares hooks, formats, and
-          audiences and records what wins here.
-        </div>
+        <EmptyState
+          icon={Lightbulb}
+          title="No learnings yet — they build themselves"
+          steps={[
+            "Competitor scans (<code>/competitor-scan</code>) record observed patterns at low confidence",
+            "Once your campaigns run, <code>/monitor</code> compares your own hooks, formats, and audiences",
+            "Winning patterns land here and pre-fill every new brief in the Ad Studio",
+          ]}
+          cta={{ label: "Scan a competitor", href: "/competitors" }}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {learnings.map((l) => (

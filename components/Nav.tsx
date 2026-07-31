@@ -10,15 +10,16 @@ import {
   Settings,
   Megaphone,
   Binoculars,
+  HelpCircle,
 } from "lucide-react";
 
 const links = [
-  { href: "/", label: "Campaigns", icon: LayoutDashboard },
-  { href: "/competitors", label: "Competitors", icon: Binoculars },
-  { href: "/studio", label: "Ad Studio", icon: Wand2 },
-  { href: "/launch", label: "Launch", icon: Rocket },
-  { href: "/learnings", label: "Learnings", icon: Lightbulb },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/", label: "Campaigns", icon: LayoutDashboard, tour: "campaigns" },
+  { href: "/competitors", label: "Competitors", icon: Binoculars, tour: "competitors" },
+  { href: "/studio", label: "Ad Studio", icon: Wand2, tour: "studio" },
+  { href: "/launch", label: "Launch", icon: Rocket, tour: "launch" },
+  { href: "/learnings", label: "Learnings", icon: Lightbulb, tour: "learnings" },
+  { href: "/settings", label: "Settings", icon: Settings, tour: "settings" },
 ];
 
 export default function Nav() {
@@ -32,12 +33,13 @@ export default function Nav() {
           <div className="text-[11px] text-slate-500">Studio &amp; Engine</div>
         </div>
       </div>
-      {links.map(({ href, label, icon: Icon }) => {
+      {links.map(({ href, label, icon: Icon, tour }) => {
         const active = pathname === href;
         return (
           <Link
             key={href}
             href={href}
+            data-tour={tour}
             className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
               active
                 ? "bg-accent/15 text-accent-soft font-medium"
@@ -52,6 +54,12 @@ export default function Nav() {
       <div className="mt-auto px-3 py-2 text-[11px] text-slate-600 leading-relaxed">
         Engine runs via Claude Code:
         <code className="block mt-1 text-slate-500">/process-jobs · /launch · /monitor</code>
+        <button
+          className="mt-3 flex items-center gap-1.5 text-slate-500 hover:text-accent-soft transition-colors"
+          onClick={() => window.dispatchEvent(new Event("fbads:restart-onboarding"))}
+        >
+          <HelpCircle className="w-3.5 h-3.5" /> Replay intro &amp; tour
+        </button>
       </div>
     </aside>
   );

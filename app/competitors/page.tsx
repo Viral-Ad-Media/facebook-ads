@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Binoculars, Star, ExternalLink, ArrowRight, Trophy, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import EngineBanner from "@/components/EngineBanner";
+import EmptyState from "@/components/EmptyState";
 import { getJson } from "@/lib/client";
 
 type CompetitorAd = {
@@ -143,8 +144,8 @@ export default function CompetitorsPage() {
               className={`text-[12px] pl-2.5 pr-1 py-1 rounded-full border inline-flex items-center gap-1 cursor-pointer ${activeQuery === q.query ? "border-accent bg-accent/15 text-accent-soft" : "border-line text-slate-500 hover:text-slate-300"}`}
               onClick={() => setActiveQuery(q.query)}>
               {q.query} ({q.c})
-              <button title={`Remove ${q.query} and its ads`}
-                className="rounded-full p-0.5 hover:bg-red-500/20 hover:text-red-400"
+              <button data-tip={`Remove "${q.query}" and all ${q.c} of its ads`}
+                className="tip rounded-full p-0.5 hover:bg-red-500/20 hover:text-red-400"
                 onClick={(e) => {
                   e.stopPropagation();
                   deleteQuery(q);
@@ -157,10 +158,16 @@ export default function CompetitorsPage() {
       )}
 
       {ads.length === 0 ? (
-        <div className="card p-10 text-center text-sm text-slate-500">
-          No competitor ads collected yet. Search a brand above, then run{" "}
-          <code className="text-accent-soft">/competitor-scan</code> in Claude Code.
-        </div>
+        <EmptyState
+          icon={Binoculars}
+          title="No competitor ads collected yet"
+          steps={[
+            "Search a brand, marketer, or keyword above — a Facebook page URL works best (e.g. <code>facebook.com/TheirPage</code>)",
+            "Run <code>/competitor-scan</code> in Claude Code to pull their live ads from the Meta Ads Library",
+            "Ads running 60+ days get a trophy — they're proven profitable",
+            "Hit <b>Use as inspiration</b> on any card to start a brief from its angle",
+          ]}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {ads.map((ad) => {
@@ -171,10 +178,10 @@ export default function CompetitorsPage() {
                 <div className="flex items-center justify-between mb-2 gap-2">
                   <div className="font-medium text-white text-sm truncate">{ad.page_name}</div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={() => toggleStar(ad)} title="Star">
+                    <button onClick={() => toggleStar(ad)} data-tip={ad.starred ? "Unstar" : "Star — pins it to the top"} className="tip">
                       <Star className={`w-4 h-4 ${ad.starred ? "text-amber-400 fill-amber-400" : "text-slate-600 hover:text-slate-400"}`} />
                     </button>
-                    <button onClick={() => deleteAd(ad)} title="Delete ad">
+                    <button onClick={() => deleteAd(ad)} data-tip="Delete this ad from your library" className="tip">
                       <Trash2 className="w-4 h-4 text-slate-600 hover:text-red-400" />
                     </button>
                   </div>

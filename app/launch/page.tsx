@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Rocket, Target, DollarSign, ShieldCheck } from "lucide-react";
 import EngineBanner from "@/components/EngineBanner";
+import EmptyState from "@/components/EmptyState";
 import { OBJECTIVES } from "@/lib/format-specs";
 import { recommendSpend } from "@/lib/spend";
 import { getJson } from "@/lib/client";
@@ -103,9 +104,16 @@ export default function LaunchPage() {
         <div className="card p-4">
           <h2 className="font-medium text-white text-sm mb-3">1 · Approved creatives</h2>
           {approved.length === 0 ? (
-            <p className="text-sm text-slate-500">
-              Nothing approved yet — approve variants in the Ad Studio first.
-            </p>
+            <EmptyState
+              icon={Rocket}
+              title="Nothing approved for launch yet"
+              steps={[
+                "Generate variants in the <b>Ad Studio</b>",
+                "Preview each one and click <b>Approve for launch</b> on your picks",
+                "Approved creatives appear here to bundle into a campaign",
+              ]}
+              cta={{ label: "Go approve creatives", href: "/studio" }}
+            />
           ) : (
             <div className="grid grid-cols-3 gap-2.5">
               {approved.map((c) => {

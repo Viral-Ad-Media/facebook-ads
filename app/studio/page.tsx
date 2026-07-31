@@ -5,6 +5,7 @@ import { Wand2, RefreshCw, CheckCircle2, Lightbulb } from "lucide-react";
 import AdPreview from "@/components/AdPreview";
 import EngineBanner from "@/components/EngineBanner";
 import CharCounter from "@/components/CharCounter";
+import EmptyState from "@/components/EmptyState";
 import { COPY_LIMITS, CTA_OPTIONS, FORMAT_SPECS } from "@/lib/format-specs";
 import { getJson } from "@/lib/client";
 
@@ -250,10 +251,16 @@ export default function StudioPage() {
             </button>
           </div>
           {creatives.length === 0 ? (
-            <div className="card p-10 text-center text-sm text-slate-500">
-              No creatives yet. Queue a brief, then run{" "}
-              <code className="text-accent-soft">/process-jobs</code> in Claude Code.
-            </div>
+            <EmptyState
+              icon={Wand2}
+              title="No creatives yet"
+              steps={[
+                "Fill the brief on the left — product, offer, and the angle you want to test",
+                "Pick formats and media, then hit <b>Queue generation</b>",
+                "In Claude Code, run <code>/process-jobs</code> — copy and visuals appear here in minutes",
+                "Click any variant to preview it as a real Facebook ad and approve it for launch",
+              ]}
+            />
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {creatives.map((c) => {

@@ -6,7 +6,9 @@ import {
 } from "recharts";
 import { Play, Pause, Activity, Bot, CircleDollarSign } from "lucide-react";
 import EngineBanner from "@/components/EngineBanner";
+import EmptyState from "@/components/EmptyState";
 import { getJson } from "@/lib/client";
+import { LayoutDashboard } from "lucide-react";
 
 type Campaign = {
   id: number;
@@ -161,9 +163,17 @@ export default function DashboardPage() {
         {/* Campaign cards */}
         <div className="space-y-4">
           {campaigns.length === 0 && (
-            <div className="card p-10 text-center text-sm text-slate-500">
-              No campaigns yet. Build creatives in the Ad Studio, approve them, and launch.
-            </div>
+            <EmptyState
+              icon={LayoutDashboard}
+              title="No campaigns yet — here's the path to your first one"
+              steps={[
+                "Set your Facebook Page ID and guardrails in <b>Settings</b>",
+                "Optional but smart: scan a competitor in <b>Competitors</b> to steal a proven angle",
+                "Create a brief in <b>Ad Studio</b>, run <code>/process-jobs</code>, approve the variants you like",
+                "Pick them in <b>Launch</b>, run <code>/launch</code> — the campaign arrives here, paused and ready to activate",
+              ]}
+              cta={{ label: "Start in Ad Studio", href: "/studio" }}
+            />
           )}
           {campaigns.map((c) => (
             <div key={c.id} className="card p-4">
@@ -203,15 +213,15 @@ export default function DashboardPage() {
                     {ad.totals.ctr.toFixed(2)}% CTR · ${(ad.totals.spend_cents / 100).toFixed(2)}
                   </span>
                   {ad.engine_managed ? (
-                    <span className="text-[10px] text-accent-soft border border-accent/40 rounded px-1.5 py-0.5 shrink-0">engine</span>
+                    <span data-tip="The optimization engine may auto-pause or scale this ad within your guardrails" className="tip text-[10px] text-accent-soft border border-accent/40 rounded px-1.5 py-0.5 shrink-0">engine</span>
                   ) : null}
                   {ad.status === "active" ? (
-                    <button title="Pause ad" className="text-slate-400 hover:text-amber-400"
+                    <button data-tip="Pause this ad on Facebook (queues a job for /launch)" className="tip text-slate-400 hover:text-amber-400"
                       onClick={() => toggleAd(c, ad.id, "paused")}>
                       <Pause className="w-4 h-4" />
                     </button>
                   ) : (
-                    <button title="Activate ad" className="text-slate-400 hover:text-emerald-400"
+                    <button data-tip="Activate this ad on Facebook (queues a job for /launch)" className="tip text-slate-400 hover:text-emerald-400"
                       onClick={() => toggleAd(c, ad.id, "active")}>
                       <Play className="w-4 h-4" />
                     </button>

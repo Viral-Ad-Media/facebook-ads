@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Nav from "@/components/Nav";
+import Onboarding from "@/components/Onboarding";
 
 export const metadata: Metadata = {
   title: "Facebook Ads Studio",
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Nav />
           <main className="flex-1 p-8 max-w-7xl mx-auto w-full">{children}</main>
         </div>
+        <Onboarding />
       </body>
     </html>
   );
