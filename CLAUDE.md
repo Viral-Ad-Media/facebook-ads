@@ -1,14 +1,14 @@
 # Facebook Ads Studio
 
 Local ad studio + campaign engine. The Next.js app (port 3100) is the visual cockpit and owns the
-SQLite performance database; **Claude Code is the execution engine** — it drains the `jobs` queue
+hosted Postgres performance database; **Claude Code is the execution engine** — it drains the `jobs` queue
 using the connected MCP connectors:
 
 - **Higgsfield connector** (`generate_image`, `generate_video`, `models_explore`) — creative generation
 - **kie-ai connector** (`nano_banana_image`, `flux2_image`, `kling_video`, `veo3_generate_video`, `wait_for_task`) — **standing fallback** whenever Higgsfield fails or is out of credits; use it automatically, no need to ask
 - **Facebook Ads connector** (`ads_*` tools) — publishing, insights, on/off, budgets
 
-## The three skills
+## The four skills
 
 | Skill | Trigger | What it does |
 |---|---|---|
@@ -56,3 +56,16 @@ Hosted on Vercel (project `facebook-ads`, functions pinned near the DB via verce
 deployment is gated by a shared password (`ADMIN_PASSWORD` env; middleware sets an `ads_key`
 cookie). Generated creatives render from `asset_url` (Higgsfield-hosted), so they work on
 any machine; `public/assets/` copies are local-only backups.
+
+
+## Safety implementation
+
+Apply `npm run migrate` with MIGRATION_DATABASE_URL before using this revision. `DATABASE_URL`
+is the restricted app role. New engine operations MUST follow each skill's gateway protocol;
+never claim jobs, reset expired leases or mark actions executed with ad-hoc SQL. Set ENGINE_TOKEN
+(at least 32 random characters) and ENGINE_BASE_URL on the engine, and the same ENGINE_TOKEN on
+the app. Job leases, checkpoints, versioned approvals, full-account safety sync and aggregate
+budget reservations are enforced in the gateway. Ambiguous remote results require reconciliation.
+Local generated media must be uploaded using `npm run upload-media`; reapprove attached creatives.
+Rules use objective-aware recent windows, ad-set cooldowns and full-account spend. `--preview`
+prints without inserting proposals; ordinary `npm run rules` writes proposals.

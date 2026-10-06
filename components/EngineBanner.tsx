@@ -15,10 +15,13 @@ export default function EngineBanner() {
   useEffect(() => {
     let alive = true;
     const poll = async () => {
-      const data = await getJson<{ pending: number; jobs: any[] }>("/api/jobs?status=pending", {
-        pending: 0,
-        jobs: [],
-      });
+      const data = await getJson<{ pending: number; jobs: any[] }>(
+        "/api/jobs?status=pending",
+        {
+          pending: 0,
+          jobs: [],
+        },
+      );
       if (!alive) return;
       setPending(data.pending ?? 0);
       setTypes(Array.from(new Set((data.jobs ?? []).map((j: any) => j.type))));
@@ -42,10 +45,12 @@ export default function EngineBanner() {
     <div className="card border-accent/40 bg-accent/10 px-4 py-3 flex items-center gap-3 mb-6">
       <Bot className="w-5 h-5 text-accent-soft shrink-0" />
       <div className="text-sm">
-        <span className="font-medium text-white">{pending} job{pending > 1 ? "s" : ""} waiting for the engine.</span>{" "}
+        <span className="font-medium text-white">
+          {pending} job{pending > 1 ? "s" : ""} waiting for the engine.
+        </span>{" "}
         <span className="text-slate-400">
-          In Claude Code, run <code className="text-accent-soft">{cmd}</code> to execute
-          ({types.join(", ")}).
+          In Claude Code, run <code className="text-accent-soft">{cmd}</code> to
+          execute ({types.join(", ")}).
         </span>
       </div>
     </div>
