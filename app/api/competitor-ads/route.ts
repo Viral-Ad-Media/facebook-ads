@@ -1,51 +1,47 @@
-import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@/lib/db";
-
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { sql, transaction } from "@/lib/db";
+import { api, body, HttpError } from "@/lib/http";
+import { scanSchema, id, pageParams } from "@/lib/validation";
+import { idempotent } from "@/lib/safety";
 export const dynamic = "force-dynamic";
-
-export async function GET(req: NextRequest) {
+export const GET = api(async (req) => {
+  const { limit, offset } = pageParams(req.nextUrl);
   const query = req.nextUrl.searchParams.get("query");
-  const ads = query
-    ? await sql`SELECT * FROM competitor_ads WHERE query = ${query} ORDER BY starred DESC, started_at ASC`
-    : await sql`SELECT * FROM competitor_ads ORDER BY starred DESC, collected_at DESC LIMIT 200`;
-  const queries = await sql`
-    SELECT query, COUNT(*)::int c, MAX(collected_at) last
-    FROM competitor_ads GROUP BY query ORDER BY last DESC`;
+  if (query) z.string().max(200).parse(query);
+  const ads =
+    await sql`SELECT * FROM competitor_ads WHERE true ${query ? sql`AND query=${query}` : sql``} ORDER BY starred DESC,collected_at DESC LIMIT ${limit} OFFSET ${offset}`;
+  const queries =
+    await sql`SELECT query,COUNT(*)::int c,MAX(collected_at) last FROM competitor_ads GROUP BY query ORDER BY last DESC LIMIT 100`;
   return NextResponse.json({ ads, queries });
-}
-
-// Queue a competitor scan for the engine (Meta Ads Library search).
-export async function POST(req: NextRequest) {
-  const b = await req.json();
-  if (!b.query?.trim()) return NextResponse.json({ error: "query required" }, { status: 400 });
-  const [row] = await sql`
-    INSERT INTO jobs (type, payload) VALUES ('competitor_scan', ${JSON.stringify({
-      query: b.query.trim(),
-      country: b.country ?? "US",
-      limit: b.limit ?? 25,
-    })})
-    RETURNING id`;
-  return NextResponse.json({ job_id: row.id });
-}
-
-export async function PATCH(req: NextRequest) {
-  const b = await req.json();
-  if (!b.id) return NextResponse.json({ error: "id required" }, { status: 400 });
-  await sql`UPDATE competitor_ads SET starred = ${b.starred ? 1 : 0} WHERE id = ${b.id}`;
+});
+export const POST = api(async (req) => {
+  const b = await body(req, scanSchema);
+  const result = await transaction((db) =>
+    idempotent(db, req.headers.get("idempotency-key"), "scan", b, async () => {
+      const [row] =
+        await db`INSERT INTO jobs(type,payload,idempotency_key) VALUES('competitor_scan',${db.json(b)},${req.headers.get("idempotency-key")!}) RETURNING id`;
+      return { job_id: row.id };
+    }),
+  );
+  return NextResponse.json(result, { status: 201 });
+});
+export const PATCH = api(async (req) => {
+  const b = await body(
+    req,
+    z.object({ id, starred: z.union([z.literal(0), z.literal(1)]) }).strict(),
+  );
+  const rows =
+    await sql`UPDATE competitor_ads SET starred=${b.starred} WHERE id=${b.id} RETURNING id`;
+  if (!rows.length) throw new HttpError(404, "Ad not found");
   return NextResponse.json({ ok: true });
-}
-
-// Delete a single stored ad (?id=) or an entire scanned competitor (?query=).
-export async function DELETE(req: NextRequest) {
-  const id = req.nextUrl.searchParams.get("id");
+});
+export const DELETE = api(async (req) => {
+  const raw = req.nextUrl.searchParams.get("id");
   const query = req.nextUrl.searchParams.get("query");
-  if (id) {
-    await sql`DELETE FROM competitor_ads WHERE id = ${id}`;
-    return NextResponse.json({ ok: true, deleted: 1 });
-  }
-  if (query) {
-    const rows = await sql`DELETE FROM competitor_ads WHERE query = ${query} RETURNING id`;
-    return NextResponse.json({ ok: true, deleted: rows.length });
-  }
-  return NextResponse.json({ error: "id or query required" }, { status: 400 });
-}
+  if (!!raw === !!query) throw new HttpError(400, "Choose id or query");
+  const rows = raw
+    ? await sql`DELETE FROM competitor_ads WHERE id=${id.parse(Number(raw))} RETURNING id`
+    : await sql`DELETE FROM competitor_ads WHERE query=${z.string().min(1).max(200).parse(query)} RETURNING id`;
+  return NextResponse.json({ ok: true, deleted: rows.length });
+});

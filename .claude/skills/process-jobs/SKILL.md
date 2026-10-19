@@ -7,15 +7,55 @@ description: Drain pending generate_creative/regenerate jobs — write ad copy a
 
 You are the creative engine for the Facebook Ads Studio app in this project. Execute every pending `generate_creative` and `regenerate` job.
 
+## Required execution protocol
+
+Use the authenticated engine gateway; never claim jobs or mark completion using ad-hoc SQL.
+Set `ENGINE_BASE_URL` and `ENGINE_TOKEN` in `.env.local` on the engine machine. A worker ID is a
+fresh UUID for this engine session. Commands use `npm run engine -- '<JSON>'`.
+
+- Claim one job atomically: `{"command":"claim","worker":"<UUID>","types":["<TYPE>"]}`.
+  Process only the returned job. An empty result means stop. Expired running jobs become
+  `needs_review`; do not reset/retry them without reconciling all provider IDs and billing effects.
+- Renew the lease before ten minutes: `{"command":"heartbeat","worker":"<UUID>","job_id":1}`.
+  Stop immediately on lease loss. Heartbeat during provider polling and between steps.
+- Before each paid generation or Meta mutation, request a checkpoint/permit:
+  `{"command":"job_operation","worker":"<UUID>","job_id":1,"step":"<STEP>"}`.
+  Valid steps include `campaign:create`, `adset:create`, `creative:1:create`, `ad:1:create`,
+  `toggle:status`, `generation:1:generate`. Number slots deterministically across formats/variants.
+  A returned `already_done` means use its recorded result and skip the provider call.
+  A 409 means reconcile provider state; never call the provider again speculatively.
+  Permits expire after 60 seconds: make exactly one intended provider call promptly.
+- Immediately after success, persist every provider ID or task/asset URL using
+  `{"command":"finish_operation","worker":"<UUID>","key":"<RETURNED_KEY>","result":{...}}`.
+  For async generation, persist the task ID before polling; resume polling the same task.
+  A conclusive primary generation failure may be checkpointed as failed and followed by a
+  distinct deterministic `generation:<SLOT>:fallback` operation; ambiguous failures require review.
+  Save Meta IDs to local campaign/ad-set/ad rows immediately after their operation checkpoint,
+  never only at the end. Recover rows from recorded results without recreating remote entities.
+- On ambiguous timeout/crash, leave the operation in-flight and flag the job for reconciliation.
+  Do not release its spend reservation. Confirm Meta/provider state before operator recovery.
+- Complete with `{"command":"finish_job","worker":"<UUID>","job_id":1,"result":{...}}`.
+  On failure add `"failed":true`. Unresolved operations produce `needs_review`.
+
+Generation rows must use a unique `generation_key` such as `job:<ID>:slot:<N>` and
+`INSERT ... ON CONFLICT (generation_key) WHERE generation_key IS NOT NULL DO NOTHING`.
+Do not call a provider for a slot with an existing operation or creative. Copy-only failures may
+be stored generated, but they cannot be approved or launched until hosted media is attached.
+
+Never edit or activate an outdated approved version. Gateway preflight validates copy, URLs,
+creative version and the aggregate budget reservation. All new campaigns stay PAUSED; the
+API does not accept immediate activation. Explicit dashboard status requests are separate jobs.
+Never bypass a gateway refusal with direct SQL or a connector call.
+
 ## Steps
 
 **Database access:** the DB is hosted Postgres (Supabase project the `SUPABASE_PROJECT_ID` from `.env.local`, schema `fbads`). Run all SQL with the Supabase MCP tool `execute_sql`, always qualifying tables as `fbads.<table>`.
 
-1. **Read pending jobs**:
+1. **Inspect pending jobs (claim through the gateway before doing work)**:
    ```sql
    SELECT * FROM fbads.jobs WHERE status='pending' AND type IN ('generate_creative','regenerate') ORDER BY id
    ```
-   For each job, mark it running: `UPDATE fbads.jobs SET status='running' WHERE id=?`.
+   Claim each job through the gateway; do not update its lease/status directly.
 
 2. **Load the brief + ICP** (`payload.brief_id`; for `regenerate` jobs, look up the original creative's brief via `payload.creative_id`):
    ```sql
@@ -69,14 +109,14 @@ You are the creative engine for the Facebook Ads Studio app in this project. Exe
    5. **Voiceover/audio (required, not optional)**: write narration matching the script beats, generate it with kie `elevenlabs_tts`, then mux:
       `ffmpeg -i out.mp4 -i vo.mp3 -c:v copy -map 0:v -map 1:a -shortest final.mp4`
       If scenes already carry kling native audio (`sound: true` per scene), the concat keeps it — voiceover can layer on top with `amix` if both are wanted. Final check before insert: the file must contain an audio stream.
-   6. Save the stitched file to `public/assets/` and insert ONE creative row for it (media_type 'video'). There is no hosted URL for stitched videos — set `asset_path` and leave `asset_url` NULL.
+   6. Save the stitched file to `public/assets/` and insert ONE creative row for it (media_type 'video'). Upload the finished file with `npm run upload-media -- <FILE>` and set the returned permanent HTTPS `asset_url`. Configure STORAGE_URL, STORAGE_BUCKET and STORAGE_SERVICE_KEY; the bucket must be public. Never ship local-only media to the hosted app.
 
 5. **Insert creatives**:
    ```sql
    INSERT INTO fbads.creatives (brief_id, media_type, format, asset_path, asset_url, primary_text, headline, description, cta, hook) VALUES (...)
    ```
 
-6. **Finish each job**: `UPDATE fbads.jobs SET status='done', result=?, finished_at=now() WHERE id=?` (result = JSON list of creative ids). Set the brief `status='ready'`. On any failure, set job `status='failed'` with the error in `result` and continue with the next job.
+6. **Finish each job**: use finish_job through the engine gateway (result = JSON list of creative ids). Set the brief `status='ready'`. On failure, call finish_job with failed:true and the error. Reconcile unfinished external operations before retrying.
 
 7. **Report**: list what was generated per brief and tell the user the variants are ready to preview in the Studio (locally http://localhost:3100/studio, or the deployed Vercel URL).
 

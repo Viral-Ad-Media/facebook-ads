@@ -7,7 +7,7 @@ This is a source review with local build/auth/dependency checks, not a productio
 
 **Assessment:** the UI and queue architecture are understandable and the production build works.
 The repository is not ready for unattended spend-affecting execution without the controls below.
-This change updates documentation only; all application findings remain open.
+The subsequent remediation implements the changes listed below. Finding sections retain the original audit context; production rollout still requires staging migrations and connector verification.
 
 ## Validation
 
@@ -25,8 +25,36 @@ This change updates documentation only; all application findings remain open.
 | Hosted deployment | Not inspected |
 
 Environment: Node 24.19.0, npm 11.9.0. Fresh installation resolved Next.js 14.2.35 and Recharts
-2.15.4. No lockfile exists, so these results do not establish the deployed versions. Package advisory
+2.15.4. A lockfile existed in the reviewed commit; the original audit incorrectly said it was absent. These fresh-install results still do not establish deployed versions. Package advisory
 counts include build tooling and transitive dependencies; applicability depends on runtime and usage.
+
+## Remediation map
+
+| Finding | Implemented change |
+| --- | --- |
+| F01 | Strict API schemas, transactional allowance checks, required approved versions/hosted assets, no immediate activation, engine preflight |
+| F02 | Aggregate reservations including external budgets, account-timezone full spend sync, ad-set cooldown, kill-switch-only recommendations |
+| F03 | Objective-aware zero-conversion stops; conversion evidence and sales ROAS required to scale |
+| F04 | Next 16/React 19/Tailwind 4/Recharts 3 upgrades, refreshed lockfile, unused image optimizer disabled; dependency audit now zero |
+| F05 | Atomic leased claims, durable operation/task checkpoints, unique generation keys, refusal of blind retries and recovery guidance |
+| F06 | Draft/job/request records created transactionally with idempotency and replay conflict checks |
+| F07 | Typed settings/ICP/brief/job schemas and numeric/timezone guards; atomic settings updates |
+| F08 | Random expiring/revocable sessions, named operator/viewer accounts, logout, password/role rotation, database login throttling and origin checks |
+| F09 | Checked mutations, visible request errors and preserved inputs/data; polling backs off |
+| F10 | Explicit Save/Discard editing, row-version conflicts and dirty state protected from polling |
+| F11 | Versioned schema/grants and administrator migration runner; durable media uploader and hosted-only approval/launch |
+| F12 | Recent/fresh windows, aggregate period frequency, four consecutive measurements, deduplicated/expiring proposals and target ROAS |
+| F13 | Batched campaign queries, bounded/date-filtered reads, paginated campaign/competitor UI, hidden-tab polling pause |
+| F14 | Noninteractive ESLint/types, rule/database/API regression tests and GitHub Actions; existing lockfile refreshed |
+| F15 | Landscape preview ratio, responsive navigation/preview, bounded keyboard-accessible tour, corrected research claims |
+
+Remediation validation: 21 regression tests, including a migrated embedded PostgreSQL engine over
+its wire protocol, cover transaction rollback, duplicate request replay, version conflict/approval
+invalidation, checkpoint replay, session revocation, login throttling and shared ad-set cooldown.
+Lint, TypeScript, production build and dependency audit are required checks in CI.
+The browser binary download was unavailable in this environment, so visual/browser smoke checks
+are not claimed. Existing production DB migrations, TLS deployment, live Meta/provider calls and
+paid generation still require environment-specific verification. No ads were activated here.
 
 ## Findings
 
@@ -98,7 +126,7 @@ The configuration permits arbitrary HTTPS image hosts and middleware excludes th
 which warrants explicit review of image optimization even though current components use raw images.
 
 Fix: migrate to a supported patched framework/toolchain, test compatibility, narrow/remove unused
-image optimization configuration, commit a lockfile, and run reproducible dependency audits in CI.
+image optimization configuration, refresh the committed lockfile, and run reproducible dependency audits in CI.
 Do not apply forced major upgrades without reviewing framework and Tailwind migration changes.
 
 ### F05 — High: queue claims and external effects lack enforced idempotency
@@ -143,7 +171,7 @@ the evaluator before it proposes actions.
 
 ### F08 — Medium: authentication lacks abuse controls and individual sessions
 
-Evidence: [login API](app/api/login/route.ts), [middleware](middleware.ts).
+Evidence: [login API](app/api/login/route.ts), [original middleware](https://github.com/Viral-Ad-Media/facebook-ads/blob/f7a193794bcd0cf0bae30b7b20e601aa3dce960b/middleware.ts).
 
 The public login route has no throttling. Cookie authentication uses an unsalted deterministic
 SHA-256 password digest as the shared bearer token. Anyone holding that cookie can replay it;
@@ -234,8 +262,8 @@ real query plans, and pause/back off polling when pages are hidden or APIs fail.
 
 Evidence: [package.json](package.json), repository file inventory.
 
-There is no lockfile, test suite, test command, ESLint config/dependencies or GitHub Actions
-workflow. The build passes but does not prove lint correctness: standalone lint stops at setup.
+There was no test suite, test command, ESLint config/dependencies or GitHub Actions
+workflow. A lockfile did exist; the audit's contrary statement has been corrected. The build passes but does not prove lint correctness: standalone lint stops at setup.
 The highest-risk validation, queue, budget and optimization behaviors have no regression tests.
 
 Fix: add reproducible installs, noninteractive lint/type/build checks and focused tests around

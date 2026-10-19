@@ -36,8 +36,8 @@ export default function LearningsPage() {
       <h1 className="text-xl font-semibold text-white mb-1">Learnings</h1>
       <p className="text-sm text-slate-500 mb-6">
         Insights the engine extracts from your performance database on every{" "}
-        <code className="text-accent-soft">/monitor</code> run — so each new ad starts smarter than
-        the last.
+        <code className="text-accent-soft">/monitor</code> run — so each new ad
+        starts smarter than the last.
       </p>
 
       {learnings.length === 0 ? (
@@ -56,7 +56,9 @@ export default function LearningsPage() {
           {learnings.map((l) => (
             <div key={l.id} className="card p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${DIM_COLOR[l.dimension] ?? "text-slate-300 bg-slate-400/10"}`}>
+                <span
+                  className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${DIM_COLOR[l.dimension] ?? "text-slate-300 bg-slate-400/10"}`}
+                >
                   {l.dimension}
                 </span>
                 <span className="text-[11px] text-slate-500">
@@ -68,11 +70,14 @@ export default function LearningsPage() {
                 {l.insight}
               </div>
               {l.evidence && (
-                <div className="text-[12px] text-slate-500 mt-2 font-mono">{l.evidence}</div>
+                <div className="text-[12px] text-slate-500 mt-2 font-mono">
+                  {l.evidence}
+                </div>
               )}
               <button
                 className="mt-3 text-[12px] text-accent-soft hover:text-accent flex items-center gap-1"
-                onClick={() => router.push("/studio")}>
+                onClick={() => router.push("/studio")}
+              >
                 Use in a new brief <ArrowRight className="w-3 h-3" />
               </button>
             </div>

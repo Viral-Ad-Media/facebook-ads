@@ -1,6 +1,7 @@
 // Facebook ad format specifications used for generation, validation, and preview.
 
-export type AdFormat = "feed_square" | "feed_portrait" | "story_vertical" | "landscape";
+export type AdFormat =
+  "feed_square" | "feed_portrait" | "story_vertical" | "landscape";
 
 export interface FormatSpec {
   id: AdFormat;
@@ -67,7 +68,11 @@ export const CTA_OPTIONS = [
 
 export const OBJECTIVES = [
   { id: "OUTCOME_TRAFFIC", label: "Traffic", goal: "LINK_CLICKS" },
-  { id: "OUTCOME_SALES", label: "Sales / Conversions", goal: "OFFSITE_CONVERSIONS" },
+  {
+    id: "OUTCOME_SALES",
+    label: "Sales / Conversions",
+    goal: "OFFSITE_CONVERSIONS",
+  },
   { id: "OUTCOME_LEADS", label: "Leads", goal: "LEAD_GENERATION" },
   { id: "OUTCOME_AWARENESS", label: "Awareness", goal: "REACH" },
   { id: "OUTCOME_ENGAGEMENT", label: "Engagement", goal: "POST_ENGAGEMENT" },
@@ -85,10 +90,16 @@ export function copyIssues(copy: {
   if (!pt) issues.push("Missing primary text");
   if (!hl) issues.push("Missing headline");
   if (pt.length > COPY_LIMITS.primary_text)
-    issues.push(`Primary text ${pt.length}/${COPY_LIMITS.primary_text} — will truncate`);
+    issues.push(
+      `Primary text ${pt.length}/${COPY_LIMITS.primary_text} — will truncate`,
+    );
   if (hl.length > COPY_LIMITS.headline)
-    issues.push(`Headline ${hl.length}/${COPY_LIMITS.headline} — will truncate`);
+    issues.push(
+      `Headline ${hl.length}/${COPY_LIMITS.headline} — will truncate`,
+    );
   if (ds.length > COPY_LIMITS.description)
-    issues.push(`Description ${ds.length}/${COPY_LIMITS.description} — will truncate`);
+    issues.push(
+      `Description ${ds.length}/${COPY_LIMITS.description} — will truncate`,
+    );
   return issues;
 }

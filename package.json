@@ -4,28 +4,44 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3100",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start -p 3100",
-    "lint": "next lint",
-    "rules": "tsx scripts/evaluate-rules.ts"
+    "lint": "eslint .",
+    "rules": "node --import tsx scripts/evaluate-rules.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "migrate": "node --import tsx scripts/migrate.ts",
+    "engine": "node --import tsx scripts/engine.ts",
+    "upload-media": "node --import tsx scripts/upload-media.ts"
   },
   "dependencies": {
     "lucide-react": "^0.475.0",
-    "next": "^14.2.28",
+    "next": "^16.3.8",
     "postgres": "^3.4.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "recharts": "^2.15.1"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "recharts": "^3.10.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "autoprefixer": "^10.4.20",
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^10.12.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "ffmpeg-static": "^5.3.0",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.17",
+    "postcss": "^8.5.29",
+    "prettier": "^3.9.9",
+    "tailwindcss": "^4.3.3",
     "tsx": "^4.19.3",
-    "typescript": "^5"
-  }
+    "typescript": "^5",
+    "typescript-eslint": "^8.71.1"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "type": "module"
 }

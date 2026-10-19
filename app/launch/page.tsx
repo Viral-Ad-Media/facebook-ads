@@ -6,7 +6,7 @@ import EngineBanner from "@/components/EngineBanner";
 import EmptyState from "@/components/EmptyState";
 import { OBJECTIVES } from "@/lib/format-specs";
 import { recommendSpend } from "@/lib/spend";
-import { getJson } from "@/lib/client";
+import { getJson, mutate } from "@/lib/client";
 
 type Icp = {
   id: number;
@@ -41,7 +41,7 @@ export default function LaunchPage() {
   useEffect(() => {
     Promise.all([
       getJson<Icp[]>("/api/icp", []),
-      getJson<Creative[]>("/api/creatives?status=approved", []),
+      getJson<Creative[]>("/api/creatives?limit=100&status=approved", []),
       getJson<Record<string, string>>("/api/settings", {}),
     ]).then(([i, c, s]) => {
       setIcps(i);
@@ -59,7 +59,7 @@ export default function LaunchPage() {
         target_cpa_cents: Number(settings.target_cpa_cents ?? 2500),
         ad_count: selectedIds.length || 1,
       }),
-    [objective, settings, selectedIds.length]
+    [objective, settings, selectedIds.length],
   );
   const maxDaily = Number(settings.max_daily_spend_cents ?? 5000);
 
@@ -68,17 +68,20 @@ export default function LaunchPage() {
   }, [rec.recommended_daily_cents, maxDaily]);
 
   async function launch() {
-    await fetch("/api/campaigns", {
+    const result = await mutate("/api/campaigns", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: name || `${approved.find((c) => selectedIds.includes(c.id))?.product ?? "Campaign"} — ${new Date().toISOString().slice(0, 10)}`,
+        name:
+          name ||
+          `${approved.find((c) => selectedIds.includes(c.id))?.product ?? "Campaign"} — ${new Date().toISOString().slice(0, 10)}`,
         objective,
         icp_id: icpId,
         daily_budget_cents: budgetCents,
         creative_ids: selectedIds,
       }),
     });
+    if (!result) return;
     setQueued(true);
     setSelectedIds([]);
   }
@@ -87,22 +90,26 @@ export default function LaunchPage() {
     <div>
       <h1 className="text-xl font-semibold text-white mb-1">Launch campaign</h1>
       <p className="text-sm text-slate-500 mb-6">
-        Pick approved creatives, confirm targeting and spend, then hand off to the engine. Campaigns
-        are created <span className="text-slate-300">paused</span> on Facebook — you activate from
-        the dashboard after final review.
+        Pick approved creatives, confirm targeting and spend, then hand off to
+        the engine. Campaigns are created{" "}
+        <span className="text-slate-300">paused</span> on Facebook — you
+        activate from the dashboard after final review.
       </p>
       <EngineBanner />
       {queued && (
         <div className="card border-emerald-500/40 bg-emerald-500/10 px-4 py-3 mb-6 text-sm text-emerald-200">
-          Launch queued. Run <code>/launch</code> in Claude Code to create the campaign on Facebook
-          (paused), then activate it from the Campaigns page.
+          Launch queued. Run <code>/launch</code> in Claude Code to create the
+          campaign on Facebook (paused), then activate it from the Campaigns
+          page.
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Creative selection */}
         <div className="card p-4">
-          <h2 className="font-medium text-white text-sm mb-3">1 · Approved creatives</h2>
+          <h2 className="font-medium text-white text-sm mb-3">
+            1 · Approved creatives
+          </h2>
           {approved.length === 0 ? (
             <EmptyState
               icon={Rocket}
@@ -120,27 +127,44 @@ export default function LaunchPage() {
                 const src =
                   c.asset_url ??
                   (c.asset_path
-                    ? c.asset_path.startsWith("/") ? c.asset_path : `/${c.asset_path}`
+                    ? c.asset_path.startsWith("/")
+                      ? c.asset_path
+                      : `/${c.asset_path}`
                     : null);
                 const on = selectedIds.includes(c.id);
                 return (
-                  <button key={c.id}
+                  <button
+                    key={c.id}
                     className={`rounded-lg overflow-hidden border text-left transition-all ${
-                      on ? "border-accent ring-2 ring-accent/50" : "border-line hover:border-slate-600"
+                      on
+                        ? "border-accent ring-2 ring-accent/50"
+                        : "border-line hover:border-slate-600"
                     }`}
                     onClick={() =>
-                      setSelectedIds((ids) => (on ? ids.filter((i) => i !== c.id) : [...ids, c.id]))
-                    }>
+                      setSelectedIds((ids) =>
+                        on ? ids.filter((i) => i !== c.id) : [...ids, c.id],
+                      )
+                    }
+                  >
                     <div className="aspect-square bg-surface-overlay">
                       {src &&
                         (c.media_type === "video" ? (
-                          <video src={src} className="w-full h-full object-cover" muted />
+                          <video
+                            src={src}
+                            className="w-full h-full object-cover"
+                            muted
+                          />
                         ) : (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={src} alt="" className="w-full h-full object-cover" />
+                          <img
+                            src={src}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
                         ))}
                     </div>
-                    <div className="p-1.5 text-[11px] text-slate-300 truncate">{c.headline}</div>
+                    <div className="p-1.5 text-[11px] text-slate-300 truncate">
+                      {c.headline}
+                    </div>
                   </button>
                 );
               })}
@@ -152,27 +176,45 @@ export default function LaunchPage() {
           {/* Campaign setup */}
           <div className="card p-4">
             <h2 className="font-medium text-white text-sm mb-3 flex items-center gap-2">
-              <Target className="w-4 h-4 text-accent" /> 2 · Objective &amp; audience
+              <Target className="w-4 h-4 text-accent" /> 2 · Objective &amp;
+              audience
             </h2>
             <label className="label">Campaign name</label>
-            <input className="input mb-3" value={name} placeholder="Auto-named if blank"
-              onChange={(e) => setName(e.target.value)} />
+            <input
+              className="input mb-3"
+              value={name}
+              placeholder="Auto-named if blank"
+              onChange={(e) => setName(e.target.value)}
+            />
             <label className="label">Objective</label>
-            <select className="input mb-3" value={objective} onChange={(e) => setObjective(e.target.value)}>
+            <select
+              className="input mb-3"
+              value={objective}
+              onChange={(e) => setObjective(e.target.value)}
+            >
               {OBJECTIVES.map((o) => (
-                <option key={o.id} value={o.id}>{o.label}</option>
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
               ))}
             </select>
             <label className="label">Ideal customer profile</label>
-            <select className="input mb-2" value={icpId} onChange={(e) => setIcpId(Number(e.target.value))}>
+            <select
+              className="input mb-2"
+              value={icpId}
+              onChange={(e) => setIcpId(Number(e.target.value))}
+            >
               {icps.map((i) => (
-                <option key={i.id} value={i.id}>{i.name}</option>
+                <option key={i.id} value={i.id}>
+                  {i.name}
+                </option>
               ))}
             </select>
             {icp && (
               <div className="text-[12px] text-slate-500 bg-surface rounded-lg p-2.5 border border-line">
-                Targets ages {icp.age_min}–{icp.age_max}, {icp.genders === "all" ? "all genders" : icp.genders},{" "}
-                {icp.geo} · interests: {icp.interests || "broad"}
+                Targets ages {icp.age_min}–{icp.age_max},{" "}
+                {icp.genders === "all" ? "all genders" : icp.genders}, {icp.geo}{" "}
+                · interests: {icp.interests || "broad"}
               </div>
             )}
           </div>
@@ -183,18 +225,29 @@ export default function LaunchPage() {
               <DollarSign className="w-4 h-4 text-accent" /> 3 · Daily budget
             </h2>
             <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-2xl font-semibold text-white">${(budgetCents / 100).toFixed(2)}</span>
+              <span className="text-2xl font-semibold text-white">
+                ${(budgetCents / 100).toFixed(2)}
+              </span>
               <span className="text-[12px] text-slate-500">per day</span>
             </div>
-            <input type="range" className="w-full accent-[#1877f2]"
-              min={rec.minimum_daily_cents} max={maxDaily} step={100}
-              value={budgetCents} onChange={(e) => setBudgetCents(Number(e.target.value))} />
+            <input
+              type="range"
+              className="w-full accent-[#1877f2]"
+              min={Math.min(rec.minimum_daily_cents, maxDaily)}
+              max={maxDaily}
+              step={100}
+              value={budgetCents}
+              onChange={(e) => setBudgetCents(Number(e.target.value))}
+            />
             <div className="flex justify-between text-[11px] text-slate-600 mb-2">
               <span>min ${(rec.minimum_daily_cents / 100).toFixed(0)}</span>
               <span>guardrail ${(maxDaily / 100).toFixed(0)}</span>
             </div>
             <p className="text-[12px] text-slate-500">
-              <span className="text-slate-300">Recommended ${(rec.recommended_daily_cents / 100).toFixed(0)}/day.</span>{" "}
+              <span className="text-slate-300">
+                Recommended ${(rec.recommended_daily_cents / 100).toFixed(0)}
+                /day.
+              </span>{" "}
               {rec.rationale}
             </p>
           </div>
@@ -202,15 +255,29 @@ export default function LaunchPage() {
           {/* Launch */}
           <div className="card p-4">
             <h2 className="font-medium text-white text-sm mb-2 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" /> 4 · Review &amp; launch
+              <ShieldCheck className="w-4 h-4 text-emerald-400" /> 4 · Review
+              &amp; launch
             </h2>
             <ul className="text-[12px] text-slate-500 space-y-1 mb-4">
-              <li>• {selectedIds.length} creative{selectedIds.length === 1 ? "" : "s"} → 1 ad set → {selectedIds.length} ad{selectedIds.length === 1 ? "" : "s"}</li>
-              <li>• Created <span className="text-slate-300">PAUSED</span> — no spend until you activate</li>
-              <li>• Optimization engine manages it within your guardrails once live</li>
+              <li>
+                • {selectedIds.length} creative
+                {selectedIds.length === 1 ? "" : "s"} → 1 ad set →{" "}
+                {selectedIds.length} ad{selectedIds.length === 1 ? "" : "s"}
+              </li>
+              <li>
+                • Created <span className="text-slate-300">PAUSED</span> — no
+                spend until you activate
+              </li>
+              <li>
+                • Optimization engine manages it within your guardrails once
+                live
+              </li>
             </ul>
-            <button className="btn-primary w-full flex items-center justify-center gap-2"
-              disabled={!selectedIds.length} onClick={launch}>
+            <button
+              className="btn-primary w-full flex items-center justify-center gap-2"
+              disabled={!selectedIds.length || !icpId || budgetCents < 100}
+              onClick={launch}
+            >
               <Rocket className="w-4 h-4" /> Launch to Facebook
             </button>
           </div>

@@ -1,11 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Binoculars, Star, ExternalLink, ArrowRight, Trophy, Trash2, X } from "lucide-react";
+import {
+  Binoculars,
+  Star,
+  ExternalLink,
+  ArrowRight,
+  Trophy,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import EngineBanner from "@/components/EngineBanner";
 import EmptyState from "@/components/EmptyState";
-import { getJson } from "@/lib/client";
+import { getJson, mutate } from "@/lib/client";
 
 type CompetitorAd = {
   id: number;
@@ -33,6 +41,7 @@ function daysRunning(started?: string): number | null {
 }
 
 export default function CompetitorsPage() {
+  const [offset, setOffset] = useState(0);
   const [ads, setAds] = useState<CompetitorAd[]>([]);
   const [queries, setQueries] = useState<QueryGroup[]>([]);
   const [activeQuery, setActiveQuery] = useState<string | null>(null);
@@ -41,15 +50,21 @@ export default function CompetitorsPage() {
   const [queued, setQueued] = useState(false);
   const router = useRouter();
 
-  const load = useCallback(async (q: string | null) => {
-    const url = q ? `/api/competitor-ads?query=${encodeURIComponent(q)}` : "/api/competitor-ads";
-    const data = await getJson<{ ads: CompetitorAd[]; queries: QueryGroup[] }>(url, {
-      ads: [],
-      queries: [],
-    });
-    setAds(data.ads);
-    setQueries(data.queries);
-  }, []);
+  const load = useCallback(
+    async (q: string | null) => {
+      const url = `/api/competitor-ads?limit=20&offset=${offset}${q ? `&query=${encodeURIComponent(q)}` : ""}`;
+      const data = await getJson<{
+        ads: CompetitorAd[];
+        queries: QueryGroup[];
+      }>(url, {
+        ads: [],
+        queries: [],
+      });
+      setAds(data.ads);
+      setQueries(data.queries);
+    },
+    [offset],
+  );
 
   useEffect(() => {
     load(activeQuery);
@@ -59,41 +74,57 @@ export default function CompetitorsPage() {
 
   async function scan() {
     if (!search.trim()) return;
-    await fetch("/api/competitor-ads", {
+    const result = await mutate("/api/competitor-ads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query: search.trim(), country }),
     });
+    if (!result) return;
     setQueued(true);
+    setOffset(0);
     setActiveQuery(search.trim());
     setTimeout(() => setQueued(false), 4000);
   }
 
   async function toggleStar(ad: CompetitorAd) {
-    await fetch("/api/competitor-ads", {
+    const result = await mutate("/api/competitor-ads", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: ad.id, starred: ad.starred ? 0 : 1 }),
     });
+    if (!result) return;
     load(activeQuery);
   }
 
   async function deleteAd(ad: CompetitorAd) {
-    if (!window.confirm(`Delete this ${ad.page_name} ad from your library?`)) return;
-    await fetch(`/api/competitor-ads?id=${ad.id}`, { method: "DELETE" });
+    if (!window.confirm(`Delete this ${ad.page_name} ad from your library?`))
+      return;
+    const result = await mutate(`/api/competitor-ads?id=${ad.id}`, {
+      method: "DELETE",
+    });
+    if (!result) return;
     load(activeQuery);
   }
 
   async function deleteQuery(q: QueryGroup) {
-    if (!window.confirm(`Remove "${q.query}" and all ${q.c} of its stored ads?`)) return;
-    await fetch(`/api/competitor-ads?query=${encodeURIComponent(q.query)}`, { method: "DELETE" });
+    if (
+      !window.confirm(`Remove "${q.query}" and all ${q.c} of its stored ads?`)
+    )
+      return;
+    const result = await mutate(
+      `/api/competitor-ads?query=${encodeURIComponent(q.query)}`,
+      { method: "DELETE" },
+    );
+    if (!result) return;
     if (activeQuery === q.query) setActiveQuery(null);
     load(activeQuery === q.query ? null : activeQuery);
   }
 
-  function useAsInspiration(ad: CompetitorAd) {
+  function createInspiredBrief(ad: CompetitorAd) {
     const inspo = {
-      angle: ad.analysis || `Inspired by ${ad.page_name}: "${(ad.headline || ad.body || "").slice(0, 80)}"`,
+      angle:
+        ad.analysis ||
+        `Inspired by ${ad.page_name}: "${(ad.headline || ad.body || "").slice(0, 80)}"`,
       notes: `Competitor reference — ${ad.page_name} (running ${daysRunning(ad.started_at) ?? "?"} days): ${(ad.body || "").slice(0, 200)}`,
     };
     sessionStorage.setItem("inspiration", JSON.stringify(inspo));
@@ -102,32 +133,46 @@ export default function CompetitorsPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-white mb-1">Competitor analysis</h1>
+      <h1 className="text-xl font-semibold text-white mb-1">
+        Competitor analysis
+      </h1>
       <p className="text-sm text-slate-500 mb-6">
-        Pull competitors&apos; running ads from the Meta Ads Library. Ads that have run for{" "}
-        <span className="text-slate-300">months</span> are paying for themselves — steal the angle,
-        not the ad.
+        Pull competitors&apos; running ads from the Meta Ads Library. Ads that
+        have run for <span className="text-slate-300">months</span> can suggest
+        angles worth testing — study the angle, not the ad.
       </p>
       <EngineBanner />
       {queued && (
         <div className="card border-emerald-500/40 bg-emerald-500/10 px-4 py-3 mb-6 text-sm text-emerald-200">
-          Scan queued. Run <code>/competitor-scan</code> in Claude Code to pull ads from the Meta
-          Ads Library.
+          Scan queued. Run <code>/competitor-scan</code> in Claude Code to pull
+          ads from the Meta Ads Library.
         </div>
       )}
 
-      <div className="card p-4 mb-6 flex gap-3 items-end">
+      <div className="card p-4 mb-6 flex flex-wrap gap-3 items-end">
         <div className="flex-1">
           <label className="label">Brand, competitor, or keyword</label>
-          <input className="input" value={search} placeholder="e.g. ClickFunnels, school attendance software…"
+          <input
+            className="input"
+            value={search}
+            placeholder="e.g. ClickFunnels, school attendance software…"
             onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && scan()} />
+            onKeyDown={(e) => e.key === "Enter" && scan()}
+          />
         </div>
         <div className="w-24">
           <label className="label">Country</label>
-          <input className="input" value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())} />
+          <input
+            className="input"
+            value={country}
+            onChange={(e) => setCountry(e.target.value.toUpperCase())}
+          />
         </div>
-        <button className="btn-primary flex items-center gap-2" disabled={!search.trim()} onClick={scan}>
+        <button
+          className="btn-primary flex items-center gap-2"
+          disabled={!search.trim()}
+          onClick={scan}
+        >
           <Binoculars className="w-4 h-4" /> Scan ads library
         </button>
       </div>
@@ -136,20 +181,31 @@ export default function CompetitorsPage() {
         <div className="flex flex-wrap gap-1.5 mb-5">
           <button
             className={`text-[12px] px-2.5 py-1 rounded-full border ${activeQuery === null ? "border-accent bg-accent/15 text-accent-soft" : "border-line text-slate-500 hover:text-slate-300"}`}
-            onClick={() => setActiveQuery(null)}>
+            onClick={() => {
+              setOffset(0);
+              setActiveQuery(null);
+            }}
+          >
             All
           </button>
           {queries.map((q) => (
-            <span key={q.query}
+            <span
+              key={q.query}
               className={`text-[12px] pl-2.5 pr-1 py-1 rounded-full border inline-flex items-center gap-1 cursor-pointer ${activeQuery === q.query ? "border-accent bg-accent/15 text-accent-soft" : "border-line text-slate-500 hover:text-slate-300"}`}
-              onClick={() => setActiveQuery(q.query)}>
+              onClick={() => {
+                setOffset(0);
+                setActiveQuery(q.query);
+              }}
+            >
               {q.query} ({q.c})
-              <button data-tip={`Remove "${q.query}" and all ${q.c} of its ads`}
+              <button
+                data-tip={`Remove "${q.query}" and all ${q.c} of its ads`}
                 className="tip rounded-full p-0.5 hover:bg-red-500/20 hover:text-red-400"
                 onClick={(e) => {
                   e.stopPropagation();
                   deleteQuery(q);
-                }}>
+                }}
+              >
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -157,6 +213,23 @@ export default function CompetitorsPage() {
         </div>
       )}
 
+      <div className="flex gap-3 mb-4">
+        <button
+          className="btn-secondary"
+          disabled={!offset}
+          onClick={() => setOffset((o) => Math.max(0, o - 20))}
+        >
+          Previous
+        </button>
+        <span className="self-center text-sm">Page {offset / 20 + 1}</span>
+        <button
+          className="btn-secondary"
+          disabled={ads.length < 20}
+          onClick={() => setOffset((o) => o + 20)}
+        >
+          Next
+        </button>
+      </div>
       {ads.length === 0 ? (
         <EmptyState
           icon={Binoculars}
@@ -164,7 +237,7 @@ export default function CompetitorsPage() {
           steps={[
             "Search a brand, marketer, or keyword above — a Facebook page URL works best (e.g. <code>facebook.com/TheirPage</code>)",
             "Run <code>/competitor-scan</code> in Claude Code to pull their live ads from the Meta Ads Library",
-            "Ads running 60+ days get a trophy — they're proven profitable",
+            "Ads running 60+ days get a trophy — they may be worth studying",
             "Hit <b>Use as inspiration</b> on any card to start a brief from its angle",
           ]}
         />
@@ -174,37 +247,71 @@ export default function CompetitorsPage() {
             const days = daysRunning(ad.started_at);
             const winner = days !== null && days >= 60;
             return (
-              <div key={ad.id} className={`card p-4 flex flex-col ${winner ? "border-amber-500/40" : ""}`}>
+              <div
+                key={ad.id}
+                className={`card p-4 flex flex-col ${winner ? "border-amber-500/40" : ""}`}
+              >
                 <div className="flex items-center justify-between mb-2 gap-2">
-                  <div className="font-medium text-white text-sm truncate">{ad.page_name}</div>
+                  <div className="font-medium text-white text-sm truncate">
+                    {ad.page_name}
+                  </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={() => toggleStar(ad)} data-tip={ad.starred ? "Unstar" : "Star — pins it to the top"} className="tip">
-                      <Star className={`w-4 h-4 ${ad.starred ? "text-amber-400 fill-amber-400" : "text-slate-600 hover:text-slate-400"}`} />
+                    <button
+                      onClick={() => toggleStar(ad)}
+                      data-tip={
+                        ad.starred ? "Unstar" : "Star — pins it to the top"
+                      }
+                      className="tip"
+                    >
+                      <Star
+                        className={`w-4 h-4 ${ad.starred ? "text-amber-400 fill-amber-400" : "text-slate-600 hover:text-slate-400"}`}
+                      />
                     </button>
-                    <button onClick={() => deleteAd(ad)} data-tip="Delete this ad from your library" className="tip">
+                    <button
+                      onClick={() => deleteAd(ad)}
+                      data-tip="Delete this ad from your library"
+                      className="tip"
+                    >
                       <Trash2 className="w-4 h-4 text-slate-600 hover:text-red-400" />
                     </button>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-2 text-[11px]">
                   {days !== null && (
-                    <span className={`px-2 py-0.5 rounded-full flex items-center gap-1 ${winner ? "bg-amber-400/15 text-amber-300" : "bg-slate-400/10 text-slate-400"}`}>
+                    <span
+                      className={`px-2 py-0.5 rounded-full flex items-center gap-1 ${winner ? "bg-amber-400/15 text-amber-300" : "bg-slate-400/10 text-slate-400"}`}
+                    >
                       {winner && <Trophy className="w-3 h-3" />} running {days}d
                     </span>
                   )}
                   {ad.media_type && (
-                    <span className="px-2 py-0.5 rounded-full bg-sky-400/10 text-sky-300">{ad.media_type}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-sky-400/10 text-sky-300">
+                      {ad.media_type}
+                    </span>
                   )}
                   {ad.platforms && (
-                    <span className="px-2 py-0.5 rounded-full bg-slate-400/10 text-slate-400">{ad.platforms}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-slate-400/10 text-slate-400">
+                      {ad.platforms}
+                    </span>
                   )}
                 </div>
                 {ad.media_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={ad.media_url} alt="" className="rounded-lg mb-2 max-h-48 object-cover w-full" />
+                  <img
+                    src={ad.media_url}
+                    alt=""
+                    className="rounded-lg mb-2 max-h-48 object-cover w-full"
+                  />
                 )}
-                {ad.headline && <div className="text-[13px] font-medium text-slate-200 mb-1">{ad.headline}</div>}
-                {ad.body && <div className="text-[12px] text-slate-400 line-clamp-4 mb-2">{ad.body}</div>}
+                {ad.headline && (
+                  <div className="text-[13px] font-medium text-slate-200 mb-1">
+                    {ad.headline}
+                  </div>
+                )}
+                {ad.body && (
+                  <div className="text-[12px] text-slate-400 line-clamp-4 mb-2">
+                    {ad.body}
+                  </div>
+                )}
                 {ad.analysis && (
                   <div className="text-[12px] text-amber-200/80 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 mb-2">
                     {ad.analysis}
@@ -212,13 +319,21 @@ export default function CompetitorsPage() {
                 )}
                 <div className="mt-auto pt-2 flex items-center justify-between">
                   {ad.snapshot_url ? (
-                    <a href={ad.snapshot_url} target="_blank" rel="noreferrer"
-                      className="text-[12px] text-slate-500 hover:text-slate-300 flex items-center gap-1">
+                    <a
+                      href={ad.snapshot_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[12px] text-slate-500 hover:text-slate-300 flex items-center gap-1"
+                    >
                       Ads Library <ExternalLink className="w-3 h-3" />
                     </a>
-                  ) : <span />}
-                  <button className="text-[12px] text-accent-soft hover:text-accent flex items-center gap-1"
-                    onClick={() => useAsInspiration(ad)}>
+                  ) : (
+                    <span />
+                  )}
+                  <button
+                    className="text-[12px] text-accent-soft hover:text-accent flex items-center gap-1"
+                    onClick={() => createInspiredBrief(ad)}
+                  >
                     Use as inspiration <ArrowRight className="w-3 h-3" />
                   </button>
                 </div>

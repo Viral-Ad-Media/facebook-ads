@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Megaphone, Bot, Binoculars, Rocket, X, ArrowRight, ArrowLeft } from "lucide-react";
+import {
+  Megaphone,
+  Bot,
+  Binoculars,
+  Rocket,
+  X,
+  ArrowRight,
+  ArrowLeft,
+} from "lucide-react";
 
 const STORAGE_KEY = "fbads_onboarded_v1";
 
@@ -11,7 +19,7 @@ const SLIDES = [
   {
     icon: Megaphone,
     title: "Welcome to Facebook Ads Studio",
-    body: "Your cockpit for the full ad lifecycle: research competitors, generate creatives, preview them exactly as they'll look on Facebook, launch campaigns, and let an optimization engine manage them within guardrails you control.",
+    body: "Your cockpit for the full ad lifecycle: research competitors, generate creatives, review illustrative previews, launch campaigns, and let an optimization engine manage them within guardrails you control.",
   },
   {
     icon: Bot,
@@ -21,7 +29,7 @@ const SLIDES = [
   {
     icon: Binoculars,
     title: "Start with intelligence",
-    body: "Scan competitors' live ads in the Meta Ads Library — ads running 60+ days are proven winners. One click turns any of them into a brief, and every campaign feeds a learnings database that makes your next ad smarter.",
+    body: "Scan competitors' live ads in the Meta Ads Library — ads running 60+ days can suggest angles worth testing. One click turns any of them into a brief, and every campaign feeds a learnings database that makes your next ad smarter.",
   },
   {
     icon: Rocket,
@@ -32,12 +40,36 @@ const SLIDES = [
 
 // ── Spotlight tour steps (anchored to data-tour attributes) ──────────────────
 const TOUR: { target: string; title: string; body: string }[] = [
-  { target: "campaigns", title: "Campaigns", body: "Live performance, spend charts, per-ad on/off switches, and the engine's action log — your daily view once ads are running." },
-  { target: "competitors", title: "Competitors", body: "Pull competitors' running ads from the Meta Ads Library. Long-running ads are proven winners — steal the angle, not the copy." },
-  { target: "studio", title: "Ad Studio", body: "Write a brief, let the engine generate copy + visuals, and preview every variant as a pixel-faithful Facebook ad before spending a cent." },
-  { target: "launch", title: "Launch", body: "Pick approved creatives, set audience and budget (with a recommended spend), and hand off to the engine. Everything starts paused." },
-  { target: "learnings", title: "Learnings", body: "What's working — hooks, formats, audiences — extracted from your own results and competitor scans. New briefs start pre-loaded with these." },
-  { target: "settings", title: "Settings", body: "Set up first: your Facebook Page ID, ideal customer profiles, and the engine's guardrails. The defaults are sane but generic." },
+  {
+    target: "campaigns",
+    title: "Campaigns",
+    body: "Live performance, spend charts, per-ad on/off switches, and the engine's action log — your daily view once ads are running.",
+  },
+  {
+    target: "competitors",
+    title: "Competitors",
+    body: "Pull competitors' running ads from the Meta Ads Library. Long-running ads are research signals — study the angle, not the copy.",
+  },
+  {
+    target: "studio",
+    title: "Ad Studio",
+    body: "Write a brief, let the engine generate copy + visuals, and preview every variant as a illustrative Facebook ad before spending a cent.",
+  },
+  {
+    target: "launch",
+    title: "Launch",
+    body: "Pick approved creatives, set audience and budget (with a recommended spend), and hand off to the engine. Everything starts paused.",
+  },
+  {
+    target: "learnings",
+    title: "Learnings",
+    body: "What's working — hooks, formats, audiences — extracted from your own results and competitor scans. New briefs start pre-loaded with these.",
+  },
+  {
+    target: "settings",
+    title: "Settings",
+    body: "Set up first: your Facebook Page ID, ideal customer profiles, and the engine's guardrails. The defaults are sane but generic.",
+  },
 ];
 
 export default function Onboarding() {
@@ -53,7 +85,8 @@ export default function Onboarding() {
       setMode("wizard");
     };
     window.addEventListener("fbads:restart-onboarding", restart);
-    return () => window.removeEventListener("fbads:restart-onboarding", restart);
+    return () =>
+      window.removeEventListener("fbads:restart-onboarding", restart);
   }, []);
 
   const finish = useCallback(() => {
@@ -61,6 +94,35 @@ export default function Onboarding() {
     setMode("hidden");
     setStep(0);
   }, []);
+
+  useEffect(() => {
+    if (mode === "hidden" || pathname === "/login") return;
+    const previous = document.activeElement as HTMLElement | null;
+    const panel = document.querySelector<HTMLElement>("[data-onboarding]");
+    panel?.querySelector<HTMLElement>("button")?.focus();
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") finish();
+      if (e.key !== "Tab" || !panel) return;
+      const buttons = Array.from(
+        panel.querySelectorAll<HTMLElement>("button:not(:disabled), a[href]"),
+      );
+      const first = buttons[0],
+        last = buttons[buttons.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last?.focus();
+      }
+      if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("keydown", key);
+      previous?.focus();
+    };
+  }, [mode, step, finish, pathname]);
 
   // Track the highlighted element during the tour
   useEffect(() => {
@@ -70,7 +132,11 @@ export default function Onboarding() {
     const update = () => setRect(el.getBoundingClientRect());
     update();
     window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    window.addEventListener("scroll", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update);
+    };
   }, [mode, step]);
 
   if (mode === "hidden" || pathname === "/login") return null;
@@ -80,27 +146,50 @@ export default function Onboarding() {
     const Icon = slide.icon;
     return (
       <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-        <div className="card p-8 max-w-md w-full relative">
-          <button className="absolute top-3 right-3 text-slate-500 hover:text-slate-300" onClick={finish} title="Skip intro">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Introduction"
+          data-onboarding
+          className="card p-6 max-w-md w-full relative max-h-[90dvh] overflow-y-auto"
+        >
+          <button
+            className="absolute top-3 right-3 text-slate-500 hover:text-slate-300"
+            onClick={finish}
+            title="Skip intro"
+          >
             <X className="w-4 h-4" />
           </button>
           <Icon className="w-10 h-10 text-accent mb-4" />
-          <h2 className="text-white font-semibold text-lg mb-2">{slide.title}</h2>
-          <p className="text-sm text-slate-400 leading-relaxed mb-6">{slide.body}</p>
+          <h2 className="text-white font-semibold text-lg mb-2">
+            {slide.title}
+          </h2>
+          <p className="text-sm text-slate-400 leading-relaxed mb-6">
+            {slide.body}
+          </p>
           <div className="flex items-center justify-between">
             <div className="flex gap-1.5">
               {SLIDES.map((_, i) => (
-                <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === step ? "bg-accent" : "bg-line"}`} />
+                <span
+                  key={i}
+                  className={`w-1.5 h-1.5 rounded-full ${i === step ? "bg-accent" : "bg-line"}`}
+                />
               ))}
             </div>
             <div className="flex gap-2">
               {step > 0 && (
-                <button className="btn-secondary !py-1.5 flex items-center gap-1" onClick={() => setStep(step - 1)}>
+                <button
+                  className="btn-secondary !py-1.5 flex items-center gap-1"
+                  onClick={() => setStep(step - 1)}
+                >
                   <ArrowLeft className="w-3.5 h-3.5" /> Back
                 </button>
               )}
               {step < SLIDES.length - 1 ? (
-                <button className="btn-primary !py-1.5 flex items-center gap-1" onClick={() => setStep(step + 1)}>
+                <button
+                  className="btn-primary !py-1.5 flex items-center gap-1"
+                  onClick={() => setStep(step + 1)}
+                >
                   Next <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               ) : (
@@ -117,7 +206,10 @@ export default function Onboarding() {
             </div>
           </div>
           {step === SLIDES.length - 1 && (
-            <button className="mt-3 text-[12px] text-slate-500 hover:text-slate-300" onClick={finish}>
+            <button
+              className="mt-3 text-[12px] text-slate-500 hover:text-slate-300"
+              onClick={finish}
+            >
               Skip the tour — let me explore
             </button>
           )}
@@ -128,39 +220,71 @@ export default function Onboarding() {
 
   // Tour mode: spotlight the nav item and show an anchored card
   const t = TOUR[step];
-  const top = rect ? Math.min(Math.max(rect.top - 8, 12), window.innerHeight - 220) : 100;
-  const left = rect ? rect.right + 16 : 240;
+  const top = Math.max(
+    12,
+    Math.min(rect ? rect.top - 8 : 100, window.innerHeight - 220),
+  );
+  const left = Math.max(
+    12,
+    Math.min(rect ? rect.right + 16 : 240, window.innerWidth - 300),
+  );
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/60" onClick={finish} />
       {rect && (
         <div
           className="absolute rounded-lg ring-2 ring-accent bg-white/5 pointer-events-none transition-all duration-200"
-          style={{ top: rect.top - 4, left: rect.left - 4, width: rect.width + 8, height: rect.height + 8 }}
+          style={{
+            top: rect.top - 4,
+            left: rect.left - 4,
+            width: rect.width + 8,
+            height: rect.height + 8,
+          }}
         />
       )}
-      <div className="absolute card p-4 w-72 transition-all duration-200" style={{ top, left }}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Product tour"
+        data-onboarding
+        className="absolute card p-4 w-72 max-w-[calc(100vw-24px)] max-h-[90dvh] overflow-y-auto transition-all duration-200"
+        style={{ top, left }}
+      >
         <div className="text-[11px] text-slate-500 mb-1">
           {step + 1} of {TOUR.length}
         </div>
         <h3 className="text-white font-semibold text-sm mb-1.5">{t.title}</h3>
-        <p className="text-[13px] text-slate-400 leading-relaxed mb-4">{t.body}</p>
+        <p className="text-[13px] text-slate-400 leading-relaxed mb-4">
+          {t.body}
+        </p>
         <div className="flex items-center justify-between">
-          <button className="text-[12px] text-slate-500 hover:text-slate-300" onClick={finish}>
+          <button
+            className="text-[12px] text-slate-500 hover:text-slate-300"
+            onClick={finish}
+          >
             End tour
           </button>
           <div className="flex gap-2">
             {step > 0 && (
-              <button className="btn-secondary !py-1 !px-2.5 text-[12px]" onClick={() => setStep(step - 1)}>
+              <button
+                className="btn-secondary !py-1 !px-2.5 text-[12px]"
+                onClick={() => setStep(step - 1)}
+              >
                 Back
               </button>
             )}
             {step < TOUR.length - 1 ? (
-              <button className="btn-primary !py-1 !px-2.5 text-[12px]" onClick={() => setStep(step + 1)}>
+              <button
+                className="btn-primary !py-1 !px-2.5 text-[12px]"
+                onClick={() => setStep(step + 1)}
+              >
                 Next
               </button>
             ) : (
-              <button className="btn-primary !py-1 !px-2.5 text-[12px]" onClick={finish}>
+              <button
+                className="btn-primary !py-1 !px-2.5 text-[12px]"
+                onClick={finish}
+              >
                 Done — go set up
               </button>
             )}
